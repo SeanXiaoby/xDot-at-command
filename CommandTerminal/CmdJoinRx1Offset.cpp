@@ -1,13 +1,15 @@
 #include "CmdJoinRx1Offset.h"
 #include "CommandTerminal.h"
 
-CmdJoinRx1Offset::CmdJoinRx1Offset() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Join Rx1 DR Offset", "AT+JRXO", "Join Rx1 datarate offset", "(US:0-3,AU:0-3,EU:0-5)")
+CmdJoinRx1Offset::CmdJoinRx1Offset()
+:
+  Command("Join Rx1 DR Offset", "AT+JRXO",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Join Rx1 datarate offset",
 #else
-    Command("AT+JRXO")
+    "",
 #endif
-{
+    "(US:0-3,AU:0-3,EU:0-5)") {
 
 }
 
@@ -23,6 +25,7 @@ uint32_t CmdJoinRx1Offset::action(const std::vector<std::string>& args) {
         sscanf(dr.c_str(), "%d", &offset);
 
         if (CommandTerminal::Dot()->setJoinRx1DataRateOffset(offset) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -38,8 +41,6 @@ bool CmdJoinRx1Offset::verify(const std::vector<std::string>& args) {
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

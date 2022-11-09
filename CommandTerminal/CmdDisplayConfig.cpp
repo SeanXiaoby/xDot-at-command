@@ -1,9 +1,14 @@
 #include "CmdDisplayConfig.h"
 
-#if MTS_CMD_TERM_VERBOSE
-CmdDisplayConfig::CmdDisplayConfig() :
-    Command("Display Settings", "AT&V", "Displays current settings and status", "TABLE")
-{
+CmdDisplayConfig::CmdDisplayConfig()
+:
+  Command("Display Settings", "AT&V",
+#if defined(TARGET_MTS_MDOT_F411RE)
+  "Displays current settings and status",
+#else
+    "",
+#endif
+    "TABLE") {
 
 }
 
@@ -68,10 +73,6 @@ uint32_t CmdDisplayConfig::action(const std::vector<std::string>& args) {
 
     CommandTerminal::Serial()->writef("Join Rx2 Frequency:\t%lu\r\n", CommandTerminal::Dot()->getJoinRx2Frequency());
 
-    CommandTerminal::Serial()->writef("Device Class:\t\t%s\r\n", CommandTerminal::Dot()->getClass().c_str());
-    CommandTerminal::Serial()->writef("Class B Timeout:\t%d s\r\n", CommandTerminal::Dot()->getClassCTimeout());
-    CommandTerminal::Serial()->writef("Class C Timeout:\t%d s\r\n", CommandTerminal::Dot()->getClassBTimeout());
-
     CommandTerminal::Serial()->writef("App Port:\t\t%d\r\n", CommandTerminal::Dot()->getAppPort());
 
     CommandTerminal::Serial()->writef("Listen Before Talk:\t");
@@ -104,6 +105,8 @@ uint32_t CmdDisplayConfig::action(const std::vector<std::string>& args) {
 
     CommandTerminal::Serial()->writef("Packet Repeat:\t\t%d\r\n", CommandTerminal::Dot()->getRepeat());
 
+    CommandTerminal::Serial()->writef("Encryption:\t\t%s\r\n", CommandTerminal::Dot()->getAesEncryption() ? "on" : "off");
+    CommandTerminal::Serial()->writef("CRC:\t\t\t%s\r\n", CommandTerminal::Dot()->getCrc() ? "on" : "off");
     CommandTerminal::Serial()->writef("Adaptive Data Rate:\t%s\r\n", CommandTerminal::Dot()->getAdr() ? "on" : "off");
     CommandTerminal::Serial()->writef("Command Echo:\t\t%s\r\n", CommandTerminal::Dot()->getEcho() ? "on" : "off");
     CommandTerminal::Serial()->writef("Verbose Response:\t%s\r\n", CommandTerminal::Dot()->getVerbose() ? "on" : "off");
@@ -158,4 +161,3 @@ uint32_t CmdDisplayConfig::action(const std::vector<std::string>& args) {
     return 0;
 }
 
-#endif // MTS_CMD_TERM_VERBOSE

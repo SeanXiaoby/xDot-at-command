@@ -1,12 +1,14 @@
 #include "CmdUplinkCounter.h"
 
-CmdUplinkCounter::CmdUplinkCounter() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Uplink Counter", "AT+ULC", "Get or set the uplink counter for the next packet", "(0-4294967295)")
+CmdUplinkCounter::CmdUplinkCounter()
+: Command("Uplink Counter", "AT+ULC",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Get or set the uplink counter for the next packet",
 #else
-    Command("AT+ULC")
+    "",
 #endif
-{
+    "(0-4294967295)")
+   {
     _queryable = true;
 }
 
@@ -19,6 +21,7 @@ uint32_t CmdUplinkCounter::action(const std::vector<std::string>& args) {
         sscanf(args[1].c_str(), "%lu", &count);
 
         if (CommandTerminal::Dot()->setUpLinkCounter(count) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -34,18 +37,14 @@ bool CmdUplinkCounter::verify(const std::vector<std::string>& args) {
         uint32_t count;
         if (sscanf(args[1].c_str(), "%lu", &count) == 1) {
             if (count > 4294967295U) {
-#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid uplink counter, expects (0-4294967295)");
-#endif
                 return false;
             }
             return true;
         }
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
 

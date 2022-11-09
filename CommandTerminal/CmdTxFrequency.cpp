@@ -3,12 +3,13 @@
 
 
 CmdTxFrequency::CmdTxFrequency() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Tx Frequency", "AT+TXF", "Set Tx frequency", "SEE PLAN")
+    Command("Tx Frequency", "AT+TXF",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Set Tx frequency",
 #else
-    Command("AT+TXF")
+    "",
 #endif
-{
+    "SEE PLAN") {
     _queryable = true;
 }
 
@@ -25,6 +26,7 @@ uint32_t CmdTxFrequency::action(const std::vector<std::string>& args)
         sscanf(args[1].c_str(), "%d", &frequency);
         if (CommandTerminal::Dot()->setTxFrequency(frequency) != mDot::MDOT_OK)
         {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -41,27 +43,21 @@ bool CmdTxFrequency::verify(const std::vector<std::string>& args)
     {
         int frequency = ULONG_MAX;
         if (sscanf(args[1].c_str(), "%d", &frequency) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (frequency != 0 && (frequency < int(CommandTerminal::Dot()->getMinFrequency()) || frequency > int(CommandTerminal::Dot()->getMaxFrequency()))) {
-#if MTS_CMD_TERM_VERBOSE
             char tmp[256];
             sprintf(tmp, "Invalid frequency, expects (0,%lu-%lu)", CommandTerminal::Dot()->getMinFrequency(), CommandTerminal::Dot()->getMaxFrequency());
             CommandTerminal::setErrorMessage(tmp);
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
 

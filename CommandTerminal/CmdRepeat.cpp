@@ -1,11 +1,13 @@
 #include "CmdRepeat.h"
 
 CmdRepeat::CmdRepeat() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Packet Repeats", "AT+REP", "Configure number of times to repeat a packet", "(0-15)")
+        Command("Packet Repeats", "AT+REP",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Configure number of times to repeat a packet",
 #else
-    Command("AT+REP")
+    "",
 #endif
+    "(0-15)")
 {
     _queryable = true;
 }
@@ -23,6 +25,7 @@ uint32_t CmdRepeat::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setRepeat(repeat) != mDot::MDOT_OK)
         {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -39,25 +42,19 @@ bool CmdRepeat::verify(const std::vector<std::string>& args)
     {
         int repeat;
         if (sscanf(args[1].c_str(), "%d", &repeat) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (repeat < 0 || repeat > 15)
         {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid repeats, expects (0-15)");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

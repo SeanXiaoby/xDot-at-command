@@ -4,16 +4,17 @@
 #include "Command.h"
 #include "CmdDummy.h"
 
+#include "CmdAttention.h"
 #include "CmdIdentification.h"
 #include "CmdResetCpu.h"
 // Echo built into command terminal
 // Verbose built into command terminal
 //
 #include "CmdFactoryDefault.h"
-#if MTS_CMD_TERM_VERBOSE
+#include "CmdSaveConfig.h"
+#include "CmdWriteProtectedConfig.h"
 #include "CmdDisplayConfig.h"
 #include "CmdDisplayStats.h"
-#endif
 #include "CmdResetStats.h"
 
 #include "CmdSerialBaudRate.h"
@@ -31,6 +32,7 @@
 #include "CmdDataSessionKey.h"
 #include "CmdUplinkCounter.h"
 #include "CmdDownlinkCounter.h"
+#include "CmdSaveSession.h"
 #include "CmdRestoreSession.h"
 #include "CmdNetworkKey.h"
 #include "CmdGenAppKey.h"
@@ -51,8 +53,10 @@
 #include "CmdNetworkLinkCheck.h"
 #include "CmdLinkCheckCount.h"
 #include "CmdLinkCheckThreshold.h"
+#include "CmdEncryption.h"
 #include "CmdRssi.h"
 #include "CmdSnr.h"
+#include "CmdDataPending.h"
 
 #include "CmdSessionDataRate.h"
 #include "CmdChannelMask.h"
@@ -73,6 +77,7 @@
 #include "CmdRxOutput.h"
 #include "CmdMulticastRx.h"
 
+#include "CmdCRC.h"
 #include "CmdAdaptiveDataRate.h"
 
 #include "CmdACKAttempts.h"
@@ -81,10 +86,11 @@
 #include "CmdMacCmd.h"
 #include "CmdSendString.h"
 #include "CmdSendBinary.h"
+#include "CmdSendStringOnInterval.h"
 #include "CmdReceiveOnce.h"
+#include "CmdReceiveContinuous.h"
 #include "CmdPing.h"
-#include "CmdClassBTimeout.h"
-#include "CmdClassCTimeout.h"
+#include "CmdFreeMemory.h"
 
 // Serial Data Mode built into command terminal
 // Sleep built into command terminal
@@ -97,32 +103,22 @@
 #include "CmdLogLevel.h"
 
 #include "CmdFota.h"
-#include "CmdGpsTime.h"
-#include "CmdBeaconLockStatus.h"
-#include "CmdLBTRSSI.h"
 #include "CmdBatteryLevel.h"
 #include "CmdTxFrequency.h"
-#include "CmdDutyCycle.h"
-
-#if MTS_CMD_TERM_TEST_COMMANDS
-#include "CmdRxDataRate.h"
-#include "CmdSendStringOnInterval.h"
 #include "CmdSendContinuous.h"
-#endif
+#include "CmdGpsTime.h"
+#include "CmdBeaconLockStatus.h"
 
 #if defined(TARGET_MTS_MDOT_F411RE)
 #include "CmdRepairFlash.h"
-#include "CmdWriteOtp.h"
 #endif
 
-#ifdef MTS_RADIO_DEBUG_COMMANDS
 // Radio debug commands
+#include "CmdRxDataRate.h"
+#include "CmdRxFrequency.h"
 #include "CmdDumpRegisters.h"
 #include "CmdEraseFlash.h"
 #include "CmdDisableDutyCycle.h"
-#include "CmdRxFrequency.h"
-#include "CmdReceiveContinuous.h"
-#include "CmdRtc.h"
-#endif
+#include "CmdLBTRSSI.h"
 
 #endif // __COMMANDS_H__

@@ -1,12 +1,13 @@
 #include "CmdIdentification.h"
 #include "mts_at_version.h"
 
-CmdIdentification::CmdIdentification() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Request Id", "ATI", "Request Identification", "NONE")
+CmdIdentification::CmdIdentification() : Command("Request Id", "ATI",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Request Identification",
 #else
-    Command("ATI")
+    "",
 #endif
+    "NONE")
 {
 }
 

@@ -7,13 +7,15 @@
 
 #include "CmdJoinDelay.h"
 
-CmdJoinDelay::CmdJoinDelay() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Join Delay", "AT+JD", "Number of seconds before receive windows are opened for join (1 - 15)", "(1-15)")
+CmdJoinDelay::CmdJoinDelay()
+:
+  Command("Join Delay", "AT+JD",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Number of seconds before receive windows are opened for join (1 - 15)",
 #else
-    Command("AT+JD")
+    "",
 #endif
-{
+    "(1-15)") {
 
     _queryable = true;
 }
@@ -32,6 +34,8 @@ uint32_t CmdJoinDelay::action(const std::vector<std::string>& args) {
         sscanf(args[1].c_str(), "%lu", &joinDelay);
 
         if (CommandTerminal::Dot()->setJoinDelay(joinDelay) != mDot::MDOT_OK) {
+
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -47,17 +51,13 @@ bool CmdJoinDelay::verify(const std::vector<std::string>& args) {
         int joinDelay;
         if (sscanf(args[1].c_str(), "%d", &joinDelay) == 1) {
             if (joinDelay > 15 || joinDelay < 1) {
-#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid join delay, expects (1-15)");
-#endif
                 return false;
             }
             return true;
         }
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

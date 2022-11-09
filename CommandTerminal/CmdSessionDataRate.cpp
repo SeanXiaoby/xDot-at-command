@@ -1,11 +1,13 @@
 #include "CmdSessionDataRate.h"
 
-CmdSessionDataRate::CmdSessionDataRate() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Session Data Rate", "AT+SDR", "Get the current datarate", "US:(7-10|DR0-DR4|DR8-DR13)) EU:(7-12|DR0-DR7))")
+CmdSessionDataRate::CmdSessionDataRate()
+: Command("Session Data Rate", "AT+SDR",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Get the current datarate",
 #else
-    Command("AT+SDR")
+    "",
 #endif
+    "US:(7-10|DR0-DR4|DR8-DR13)) EU:(7-12|DR0-DR7))")
 {
     _queryable = true;
 }
@@ -16,4 +18,12 @@ uint32_t CmdSessionDataRate::action(const std::vector<std::string>& args) {
     }
 
     return 0;
+}
+
+bool CmdSessionDataRate::verify(const std::vector<std::string>& args) {
+    if (args.size() == 1)
+        return true;
+
+    CommandTerminal::setErrorMessage("Invalid arguments");
+    return false;
 }

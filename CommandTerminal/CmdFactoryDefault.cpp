@@ -1,11 +1,12 @@
 #include "CmdFactoryDefault.h"
 
-CmdFactoryDefault::CmdFactoryDefault() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Reset Factory Defaults", "AT&F", "Reset current configuration to factory defaults", "NONE")
+CmdFactoryDefault::CmdFactoryDefault() : Command("Reset Factory Defaults", "AT&F",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Reset current configuration to factory defaults",
 #else
-    Command("AT&F")
+    "",
 #endif
+    "NONE")
 {
 }
 

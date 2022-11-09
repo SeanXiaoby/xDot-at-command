@@ -1,11 +1,14 @@
 #include "CmdBatteryLevel.h"
 
-CmdBatteryLevel::CmdBatteryLevel() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Battery Level", "AT+BAT", "Battery Level of dot (0 - 255)", "(0-255)")
+CmdBatteryLevel::CmdBatteryLevel()
+    :
+        Command("Battery Level", "AT+BAT",
+#if defined(TARGET_MTS_MDOT_F411RE)
+        "Battery Level of dot (0 - 255)",
 #else
-    Command("AT+BAT")
+        "",
 #endif
+         "(0-255)")
 {
     _queryable = true;
 }
@@ -31,18 +34,14 @@ bool CmdBatteryLevel::verify(const std::vector<std::string>& args) {
     if (args.size() == 2) {
         if (sscanf(args[1].c_str(), "%d", &battery_level) == 1) {
             if (battery_level > 255 || battery_level < 0) {
-#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid battery level, expects (0-255)");
-#endif
                 return false;
             }
             return true;
         }
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
 

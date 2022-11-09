@@ -1,11 +1,13 @@
 #include "CmdPingPeriod.h"
 
 CmdPingPeriod::CmdPingPeriod() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Ping Periodicity", "AT+PP", "Set the periodicity of class B ping slots as number of pings per interval = 2^(7-periodicity)", "(0-7)")
+    Command("Ping Periodicity", "AT+PP",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Set the periodicity of class B ping slots as number of pings per interval = 2^(7-periodicity)",
 #else
-    Command("AT+PP")
+    "",
 #endif
+    "(0-7)")
 {
     _queryable = true;
 }
@@ -20,6 +22,7 @@ uint32_t CmdPingPeriod::action(const std::vector<std::string>& args)
         sscanf(args[1].c_str(), "%lu", &periodicity);
 
         if (dot->setPingPeriodicity(static_cast<uint8_t>(periodicity)) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
             return 1;
         }
     }
@@ -36,9 +39,7 @@ bool CmdPingPeriod::verify(const std::vector<std::string>& args)
         uint32_t periodicity;
         if (sscanf(args[1].c_str(), "%lu", &periodicity) == 1) {
             if (periodicity > 7) {
-#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid periodicity, expects (0-7)");
-#endif
                 return false;
             }
 
@@ -46,8 +47,6 @@ bool CmdPingPeriod::verify(const std::vector<std::string>& args)
         }
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

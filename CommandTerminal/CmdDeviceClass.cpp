@@ -1,13 +1,15 @@
 #include "CmdDeviceClass.h"
 #include "CommandTerminal.h"
 
-CmdDeviceClass::CmdDeviceClass() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Device Class", "AT+DC", "Device class (A,B,C)", "(A,B,C)")
+CmdDeviceClass::CmdDeviceClass()
+:
+  Command("Device Class", "AT+DC",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Device class (A,B,C)",
 #else
-    Command("AT+DC")
+    "",
 #endif
-{
+    "(A,B,C)") {
 
     _queryable = true;
 }
@@ -22,6 +24,7 @@ uint32_t CmdDeviceClass::action(const std::vector<std::string>& args) {
         CommandTerminal::Serial()->writef("%s\r\n", CommandTerminal::Dot()->getClass().c_str());
     } else {
         if (CommandTerminal::Dot()->setClass(args[1]) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -31,19 +34,17 @@ uint32_t CmdDeviceClass::action(const std::vector<std::string>& args) {
 
 bool CmdDeviceClass::verify(const std::vector<std::string>& args)
 {
+    std::vector<std::string> local_args(args);
     if (args.size() == 1)
         return true;
 
-    if ((args.size() == 2) && (args[1].size() == 1)) {
-        char dev_class = args[1][0];
-        if (dev_class == 'A' || dev_class == 'B' || dev_class == 'C' ||
-            dev_class == 'a' || dev_class == 'b' || dev_class == 'c') {
+    if (args.size() == 2) {
+        local_args[1] = mts::Text::toUpper(args[1]);
+        if (local_args[1] == "A" || local_args[1] == "B" || local_args[1] == "C") {
             return true;
         }
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

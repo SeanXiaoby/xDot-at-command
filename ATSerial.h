@@ -1,33 +1,43 @@
 #ifndef ATSERIAL_H
 #define ATSERIAL_H
 
-#include "mbed.h"
+#include "MTSSerial.h"
+#include "MTSBufferedIO.h"
 
 namespace mts
 {
 
-/** This class wraps provides a buffered wrapper to the mbed::UnbufferedSerial
- * class.  Looks for an escape sequence within received byte stream.
- */
-class ATSerial : private mbed::NonCopyable<ATSerial>
+/** This class derives from MTSBufferedIO and provides a buffered wrapper to the
+* standard mbed Serial class. Since it depends only on the mbed Serial class for
+* accessing serial data, this class is inherently portable accross different mbed
+* platforms.
+*/
+class ATSerial : public MTSBufferedIO
 {
 public:
     /** Creates a new ATSerial object that can be used to talk to an mbed serial port
-    * through internal SW buffers.  Providing RTS and CTS will enable flow control.
+    * through internal SW buffers.
     *
-    * @param txd the transmit data pin on the desired mbed Serial interface.
-    * @param rxd the receive data pin on the desired mbed Serial interface.
-    * @param rts the request-to-send pin on the desired mbed Serial interface.
-    * @param cts the clear-to-send pin on the desired mbed Serial interface.
-    * @param baud The initial baudrate
+    * @param TXD the transmit data pin on the desired mbed Serial interface.
+    * @param RXD the receive data pin on the desired mbed Serial interface.
+    * @param txBufferSize the size in bytes of the internal SW transmit buffer. The
+    * default is 256 bytes.
+    * @param rxBufferSize the size in bytes of the internal SW receive buffer. The
+    * default is 256 bytes.
     */
-    ATSerial(PinName txd, PinName rxd, PinName rts = NC, PinName cts = NC,
-        int baud = MBED_CONF_PLATFORM_DEFAULT_SERIAL_BAUD_RATE);
+    ATSerial(PinName TXD, PinName RXD, int txBufferSize = 256, int rxBufferSize = 256);
 
     /** Destructs an ATSerial object and frees all related resources, including
     * internal buffers.
     */
     virtual ~ATSerial();
+
+    /**
+     * Attach the internal serial object to provided pins
+     * @param TXD the transmit data pin on the desired mbed Serial interface.
+     * @param RXD the receive data pin on the desired mbed Serial interface.
+     */
+    void reattach(PinName TXD, PinName RXD);
 
     /** This method is used to the set the baud rate of the serial port.
     *
@@ -42,88 +52,45 @@ public:
     * SerialBase::Forced1, SerialBase::Forced0; default = SerialBase::None)
     * @param stop the number of stop bits (1 or 2; default = 1)
     */
-    void format(int bits=8, mbed::SerialBase::Parity parity=mbed::SerialBase::None, int stop_bits=1);
+    void format(int bits=8, SerialBase::Parity parity=mbed::SerialBase::None, int stop_bits=1);
 
-    /** Check if bytes are available to read.
-     * @return True if receive buffer is not empty.
+    /** Generate a break condition on the serial line
      */
-    bool readable();
-
-    /** Check if bytes can be written.
-     * @return True if transmit buffer is not full.
-     */
-    bool writeable();
-
-    /** Clear the receive buffer. */
-    void rxClear();
-
-    /** Clear the transmist buffer. */
-    void txClear();
+    void sendBreak();
 
     /** Check for escape sequence detected on serial input
-     * @return true if escape sequence was seen
+     *  @return true if escape sequence was seen
      */
     bool escaped();
 
-    /** Set escape character. */
     void escapeChar(char esc);
 
-    /** Get the escape character. */
     char escapeChar();
 
-    /** Clear escaped state. */
     void clearEscaped();
 
-    /** Read a byte from receive buffer
-     * @param[out] c Storage for read character 
-     * @return True if a character was read
+    /** Attach and detach rx irq handler to existing serial instance
      */
-    bool read(char& c);
-
-    /** Read bytes from the receive buffer.
-     * @param[out] buffer Allocated memory to store read bytes
-     * @param length Size of buffer in bytes
-     * @return Number of bytes read
-     */
-    int read(char *buffer, size_t length);
-
-    /** Write bytes from to transmit buffer.
-     * @param buffer Bytes to write
-     * @param length Size of buffer in bytes
-     * @return Number of bytes written
-     */
-    int write(const char *buffer, size_t length);
-
-    /** Write formatted string to transmit buffer.
-     * @param format Format string
-     * @param ... Items to format
-     * @return Number of bytes written
-     */
-    int writef(const char* format, ... );
+    void attach();
+    void detach();
 
 protected:
-    mbed::UnbufferedSerial _serial; // Using unbuffered serial so reads can be done in event handler
 
-    // Receive buffer
-    mbed::CircularBuffer<char, MBED_CONF_DRIVERS_UART_SERIAL_RXBUF_SIZE> _rxbuf;
-    // Transmit buffer
-    mbed::CircularBuffer<char, MBED_CONF_DRIVERS_UART_SERIAL_RXBUF_SIZE> _txbuf;
-    bool _tx_irq_enabled;   // Flag indicating transmit IRQ is enabled
+    RawSerial* _serial; // Internal mbed Serial object
+    int _baudrate;
+    int _bits;
+    SerialBase::Parity _parity;
+    int _stop_bits;
+    Timer timer;
+    int _last_time;
+    int _esc_cnt;
+    char _esc_ch;
+    bool _escaped;
 
-    Timer _timer;           // Inter-byte receive timer
-    std::chrono::milliseconds _last_time;   // Last time a byte was received
-    int _esc_cnt;           // Number of escape characters received
-    char _esc_ch;           // Escape character
-    bool _escaped;          // True if escape sequence has been received
-    void handleRead();      // Method for handling data to be read
-    void handleWrite();     // Method for handling data writes
-    void startWrite();      // Method for starting data writes
-    PlatformMutex _mutex;   // Lock for API accesses
-    bool _flow;             // Flag indicates flow control is enabled
-    DigitalOut _rts;        // Request to send signal
-    InterruptIn _cts;       // Clear to send signal
-    size_t _hwm;            // RX buffer high water mark for setting RTS to stop
-    size_t _lwm;            // RX buffer low water mark for setting RTS to start
+    virtual void handleWrite(); // Method for handling data to be written
+    virtual void handleRead(); // Method for handling data to be read
+
+
 };
 
 }

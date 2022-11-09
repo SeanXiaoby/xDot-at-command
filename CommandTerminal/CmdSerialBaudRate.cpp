@@ -1,10 +1,10 @@
 #include "CmdSerialBaudRate.h"
 
 CmdSerialBaudRate::CmdSerialBaudRate() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Serial Baud Rate", "AT+IPR", "Set serial baud rate, default: 115200 ", "(1200,2400,4800,9600,19200,38400,57600,115200,230400,460800,921600)")
+#if defined(TARGET_MTS_MDOT_F411RE)
+        Command("Serial Baud Rate", "AT+IPR", "Set serial baud rate, default: 115200 ", "(1200,2400,4800,9600,19200,38400,57600,115200,230400,460800,921600)")
 #else
-    Command("AT+IPR")
+        Command("Serial Baud Rate", "AT+IPR", "", "(1200,2400,4800,9600,19200,38400,57600,115200,230400)")
 #endif
 {
     _queryable = true;
@@ -24,10 +24,10 @@ uint32_t CmdSerialBaudRate::action(const std::vector<std::string>& args)
         sscanf(args[1].c_str(), "%d", &baudrate);
 
         if (CommandTerminal::Dot()->setBaud(baudrate) == mDot::MDOT_OK) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::Serial()->writef("Set Serial Baud Rate: %lu\r\n", baudrate);
-#endif
         } else {
+
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -44,17 +44,13 @@ bool CmdSerialBaudRate::verify(const std::vector<std::string>& args)
         int baudrate;
 
         if (sscanf(args[1].c_str(), "%d", &baudrate) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

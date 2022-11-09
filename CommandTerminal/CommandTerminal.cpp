@@ -6,8 +6,6 @@
 #include "ChannelPlan.h"
 #include <cstdarg>
 #include <deque>
-#include "mts_at_version.h"
-
 #if defined(TARGET_XDOT_L151CC)
 #include "xdot_low_power.h"
 #endif
@@ -51,7 +49,6 @@ static uint8_t _battery_level = 0xFF;
 
 static uint8_t f_data[252]; //max payload 242 plus 10 bytes for format
 static uint32_t _rxAddress = 0;
-static uint32_t _rxFcnt = 0;
 
 #if defined(TARGET_MTS_MDOT_F411RE)
 DigitalOut _packet_rx_pin(D12);
@@ -83,55 +80,10 @@ CommandTerminal::CommandTerminal(mts::ATSerial& serial) :
     _serialp = &serial;
 }
 
-void free_mem() {
-    // In order to get free mem within RTOS
-    // we need to get the main thread's stack pointer
-    // and subtract it with the top of the heap
-    // ------+-------------------+   Last Address of RAM (INITIAL_SP)
-    //       | Scheduler Stack   |
-    //       +-------------------+
-    //       | Main Thread Stack |
-    //       |         |         |
-    //       |         v         |
-    //       +-------------------+ <- bottom_of_stack/__get_MSP()
-    // RAM   |                   |
-    //       |  Available RAM    |
-    //       |                   |
-    //       +-------------------+ <- top_of_heap
-    //       |         ^         |
-    //       |         |         |
-    //       |       Heap        |
-    //       +-------------------+ <- __end__ / HEAP_START (linker defined var)
-    //       | ZI                |
-    //       +-------------------+
-    //       | ZI: Shell Stack   |
-    //       +-------------------+
-    //       | ZI: Idle Stack    |
-    //       +-------------------+
-    //       | ZI: Timer Stack   |
-    //       +-------------------+
-    //       | RW                |
-    // ------+===================+  First Address of RAM
-    //       |                   |
-    // Flash |                   |
-    //
-
-    uint32_t bottom_of_stack = __get_MSP();
-    char* top_of_heap =  (char *) malloc(sizeof(char));
-    uint32_t diff = bottom_of_stack - (uint32_t) top_of_heap;
-
-    free((void *) top_of_heap);
-
-    CommandTerminal::Serial()->writef("%lu bytes\r\n", diff);
-}
-
 void CommandTerminal::init() {
     _dot->setEvents(_events);
-    _serial.rxClear();
-    _serial.txClear();
 }
 
-#if MTS_CMD_TERM_VERBOSE
 void CommandTerminal::printHelp() {
     const char* name = NULL;
     const char* text = NULL;
@@ -176,7 +128,6 @@ void CommandTerminal::printHelp() {
 
     write(newline);
 }
-#endif
 
 bool CommandTerminal::writeable() {
     return _serialp->writeable();
@@ -188,7 +139,7 @@ bool CommandTerminal::readable() {
 
 char CommandTerminal::read() {
     char ch;
-    _serialp->read(ch);
+    _serialp->read(&ch, 1);
     return ch;
 }
 
@@ -199,7 +150,7 @@ void CommandTerminal::write(const char* message) {
 }
 
 void CommandTerminal::writef(const char* format, ...) {
-    char buff[512];
+    char buff[256];
 
     va_list ap;
     va_start(ap, format);
@@ -214,21 +165,18 @@ void CommandTerminal::serialLoop() {
     Timer serial_read_timer;
     std::vector<uint8_t> serial_buffer;
     std::vector<uint8_t> data;
-    std::chrono::milliseconds timeout(0);
-    std::chrono::milliseconds elapsed_time_ms;
+    int timeout = 0;
 
     serial_read_timer.start();
 
     if (_dot->getStartUpMode() == mDot::SERIAL_MODE) {
         _xbee_on_sleep = GPIO_PIN_SET;
 
-        timeout = std::chrono::milliseconds(_dot->getWakeDelay());
-        elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(serial_read_timer.elapsed_time());
+        timeout = _dot->getWakeDelay();
 
         // wait for timeout or start of serial data
-        while (!readable() && elapsed_time_ms < timeout && !_serialp->escaped()) {
-            ThisThread::sleep_for(2ms);
-            elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(serial_read_timer.elapsed_time());
+        while (!readable() && serial_read_timer.read_ms() < timeout && !_serialp->escaped()) {
+            osDelay(2);
         }
     }
 
@@ -240,25 +188,15 @@ void CommandTerminal::serialLoop() {
     if (readable() && !_serialp->escaped()) {
 
         serial_read_timer.reset();
-        timeout = std::chrono::milliseconds(_dot->getWakeTimeout());
+        timeout = _dot->getWakeTimeout();
 
-        while (true) {
-            elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(serial_read_timer.elapsed_time());
-            if ((elapsed_time_ms >= timeout) ) {
-
-                break;
-            }
-            if (serial_buffer.size() >= _dot->getNextTxMaxSize())  {
-                break;
-            }
-            if  (_serialp->escaped())  {
-                break;
-            }
-            if (readable()) {
+        while (serial_read_timer.read_ms() < timeout && serial_buffer.size() <= _dot->getNextTxMaxSize()) {
+            while (readable() && serial_buffer.size() < _dot->getNextTxMaxSize()) {
                 serial_buffer.push_back(read());
                 serial_read_timer.reset();
-            } else {
-                ThisThread::sleep_for(5ms);
+
+                if (_serialp->escaped())
+                    break;
             }
         }
 
@@ -271,7 +209,7 @@ void CommandTerminal::serialLoop() {
 L_SEND:
             // wait for any duty cycle limit to expire
             while (_dot->getNextTxMs() > 0 && !_serialp->escaped()) {
-                ThisThread::sleep_for(10ms);
+                osDelay(10);
             }
 
             if (_dot->getIsIdle()) {
@@ -279,7 +217,6 @@ L_SEND:
                 if(_dot->getRxOutput() == mDot::EXTENDED || _dot->getRxOutput() == mDot::EXTENDED_HEX) {
                     formatPacketSDSend(serial_buffer);
                 }
-
                 if (_dot->send(serial_buffer, false) != mDot::MDOT_OK) {
                     logDebug("Send failed.");
                     // If the data should be tossed after send failure, clear buffer
@@ -290,7 +227,7 @@ L_SEND:
 
                     // wait for send to finish
                     do {
-                        ThisThread::sleep_for(50ms);
+                        osDelay(50);
                     } while (!_dot->getIsIdle() && !_serialp->escaped());
 
                     // call recv to wait for any packet before sending again
@@ -320,12 +257,11 @@ L_SEND:
                 }
             } else {
                 logDebug("Radio is busy, cannot send.\r\n");
-                ThisThread::sleep_for(10ms);
+                osDelay(10);
             }
 
         } else {
             logDebug("No data received from serial to send.\r\n");
-            ThisThread::sleep_for(10ms);
         }
     }
 
@@ -424,36 +360,6 @@ bool CommandTerminal::autoJoinCheck() {
     return false;
 }
 
-#define CMD_DEFS_COUNT  (13)
-#define CMD_DEFS_VARIANT_SIZE  (4)
-#define CMD_DEFS_LABEL_SIZE  (7)
-
-struct CommandDefinition {
-    const char label[CMD_DEFS_LABEL_SIZE];
-    const char var[CMD_DEFS_VARIANT_SIZE];
-    uint8_t max_args;
-    CommandFactory::CmdId_t id;
-};
-
-// Table of commands handled locally
-static const CommandDefinition cmd_defs[CMD_DEFS_COUNT] = {
-    {"", "", 0, CommandFactory::eAT},
-    {"E", "?01", 0, CommandFactory::eATE},
-    {"V", "?01", 0, CommandFactory::eATVERBOSE},
-    {"&K", "?03", 0, CommandFactory::eATK},
-    {"+URC", "?", 1, CommandFactory::eURC},
-    {"+LW", "?", 0, CommandFactory::eLW},
-    {"+SD", "?", 0, CommandFactory::eSD},
-    {"&WP", "", 0, CommandFactory::eATWP},
-    {"&W", "", 0, CommandFactory::eATW},
-    {"+SS", "", 0, CommandFactory::eSS},
-    {"+DP", "?", 0, CommandFactory::eDP},
-    {"+SLEEP", "", 1, CommandFactory::eSLEEP},
-    {"+MEM", "?", 0, CommandFactory::eMEM}
-};
-
-
-
 void CommandTerminal::start() {
 
     char ch;
@@ -469,7 +375,7 @@ void CommandTerminal::start() {
 
     _autoOTAEnabled = _dot->getJoinMode() == mDot::AUTO_OTA;
 
-    if (_dot->getStartUpMode() == mDot::SERIAL_MODE || CommandTerminal::Dot()->getTestModeEnabled()) {
+    if (_dot->getStartUpMode() == mDot::SERIAL_MODE) {
 
         serial_data_mode = true;
         _mode = mDot::SERIAL_MODE;
@@ -499,7 +405,6 @@ void CommandTerminal::start() {
                     logInfo("Escape detected");
                     join_canceled = true;
                     serial_data_mode = false;
-                    CommandTerminal::Dot()->setTestModeEnabled(false);
                     _mode = mDot::COMMAND_MODE;
                     command.clear();
                     break;
@@ -512,11 +417,7 @@ void CommandTerminal::start() {
             }
         }
 
-        if (_dot->getTestModeEnabled()) {
-            Fota::getInstance()->enable(false);
-        }
-
-        if ((_mode == mDot::SERIAL_MODE || CommandTerminal::Dot()->getTestModeEnabled()) && !_dot->getNetworkJoinStatus() && _dot->getJoinMode() == mDot::OTA) {
+        if (_mode == mDot::SERIAL_MODE && !_dot->getNetworkJoinStatus() && _dot->getJoinMode() == mDot::OTA) {
             if (_dot->joinNetworkOnce() != mDot::MDOT_OK) {
                 serial_data_mode = false;
                 _mode = mDot::COMMAND_MODE;
@@ -525,14 +426,6 @@ void CommandTerminal::start() {
                 _serial.writef("Network Not Joined\r\n");
                 _serial.writef(error);
             }
-        }
-    }
-
-    if (CommandTerminal::Dot()->getTestModeEnabled() && _dot->getNetworkJoinStatus()) {
-        while (CommandTerminal::Dot()->getTestModeEnabled() && !_events->PacketReceived) {
-            std::vector<uint8_t> data;
-            CommandTerminal::Dot()->send(data, false);
-            osDelay(5000);
         }
     }
 
@@ -546,34 +439,7 @@ void CommandTerminal::start() {
     }
     //Run terminal session
     while (running) {
-
-        if (_events != NULL && CommandTerminal::Dot()->getTestModeEnabled() && !_serial.escaped()) {
-            if (_dot->getNextTxMs() > 0) {
-                osDelay(2000);
-            } else if (!_dot->getNetworkJoinStatus() && _dot->getJoinMode() == mDot::OTA) {
-                if (_dot->joinNetworkOnce() != mDot::MDOT_OK) {
-                    serial_data_mode = false;
-                    _mode = mDot::COMMAND_MODE;
-
-                    logWarning("Start Up Mode set to SERIAL_MODE, but join failed.");
-                    _serial.writef("Network Not Joined\r\n");
-                    _serial.writef(error);
-                }
-            } else if (_events->PacketReceived) {
-                _events->handleTestModePacket();
-                _events->PacketReceived =  false;
-
-            } else {
-                while (CommandTerminal::Dot()->getTestModeEnabled() && !_events->PacketReceived  && !_serial.escaped()) {
-                    std::vector<uint8_t> data;
-                    CommandTerminal::Dot()->send(data, false);
-                    osDelay(5000);
-                }
-            }
-            continue;
-        }
-
-        // wait for input to reduce at command idle current
+            // wait for input to reduce at command idle current
         while (!readable() || _mode == mDot::SERIAL_MODE) {
             if (!join_canceled && _autoOTAEnabled) {
                 join_canceled = autoJoinCheck();
@@ -596,7 +462,7 @@ void CommandTerminal::start() {
             ch = '\0';
 
             if (_mode != mDot::SERIAL_MODE) {
-                ThisThread::sleep_for(10ms);
+                ThisThread::sleep_for(10); // 10 ms
             }
             _serial.escaped();
         }
@@ -709,243 +575,115 @@ void CommandTerminal::start() {
         }
 
         args[0] = mts::Text::toUpper(args[0]);
-        bool handled = false;
 
         // print help
         if ((args[0].find("?") == 0 || args[0].find("HELP") == 0) && args.size() == 1) {
-#if MTS_CMD_TERM_VERBOSE
             printHelp();
-#endif
             command.clear();
-            handled = true;
-        } else if (args[0].find("AT") == 0) {
-            const CommandDefinition* def = NULL;    // Command to handle if matched
-            char variant = '\0';                    // Variant character
-            for (int d = 0; (d < CMD_DEFS_COUNT) && (def == NULL); ++d) {
-                size_t label_size = 2 + strlen(cmd_defs[d].label);
-                if (args[0].find(cmd_defs[d].label) == 2) {
-                    // Label found following "AT"
-                    for (int v = 0; v < CMD_DEFS_VARIANT_SIZE; ++v) {
-                        if ((args[0][label_size] == cmd_defs[d].var[v]) &&
-                            (args[0][label_size] == '\0' || args[0][label_size + 1] == '\0')) {
-                            // Check for variant characters following label, this includes a NULL
-                            def = &cmd_defs[d];
-                            variant = cmd_defs[d].var[v];
-                            break;
-                        }
-                    }
+        } else if ((args[0].find("ATE?") == 0 && args[0].length() == 4) || (args[0].find("ATE") == 0 && args[0].length() == 3)) {
+            writef("%d\r\n", _dot->getEcho());
+            write(done);
+        } else if (args[0].find("ATE0") == 0 && args[0].length() == 4) {
+            _dot->setEcho(false);
+            write(done);
+            echo = _dot->getEcho();
+        } else if (args[0].find("ATE1") == 0 && args[0].length() == 4) {
+            _dot->setEcho(true);
+            write(done);
+            echo = _dot->getEcho();
+        } else if ((args[0].find("ATV?") == 0 && args[0].length() == 4) || (args[0].find("ATV") == 0 && args[0].length() == 3)) {
+            writef("%d\r\n", _dot->getVerbose());
+            write(done);
+        } else if (args[0].find("ATV0") == 0 && args[0].length() == 4) {
+            _dot->setVerbose(false);
+            write(done);
+        } else if (args[0].find("ATV1") == 0 && args[0].length() == 4) {
+            _dot->setVerbose(true);
+            write(done);
+        } else if ((args[0].find("AT&K?") == 0 && args[0].length() == 5) || (args[0].find("AT&K") == 0 && args[0].length() == 4)) {
+            writef("%d\r\n", (_dot->getFlowControl() ? 3 : 0));
+            write(done);
+        } else if (args[0].find("AT&K0") == 0 && args[0].length() == 5) {
+            _dot->setFlowControl(false);
+            write(done);
+        } else if (args[0].find("AT&K3") == 0 && args[0].length() == 5) {
+            _dot->setFlowControl(true);
+            write(done);
+        } else if (args[0].find("AT+URC") == 0 && args[0].length() == 6) {
+            if (args.size() >= 2 && (args[1] != "?" && args[1] != "0" && args[1] != "1")) {
+                write("Invalid argument\r\n");
+                write(error);
+            } else if (args.size() == 2) {
+                if (args.size() > 1 && args[1] == "?") {
+                    write("(0:disable,1:enable)\r\n");
+                } else {
+                    urc_enabled = (args[1] == "1");
                 }
+            } else {
+                writef("%d\r\n", urc_enabled);
             }
-            if (def != NULL) {
-                handled = true;
-                if (args.size() == 2 && args[1].length() == 1 && args[1][0] == '?') {
-                    handled = false;
-                } else if (args.size() - 1 > def->max_args) {
-#if MTS_CMD_TERM_VERBOSE
-                    write("Invalid argument\r\n");
-#endif
-                    write(error);
-                } else {
-                    switch (def->id) {
-                        case CommandFactory::eAT:
-                            write(done);
-                            break;
-                        case CommandFactory::eATE:
-                            if (variant == '1' || variant == '0') {
-                                _dot->setEcho(variant == '1');
-                                echo = _dot->getEcho();
-                            } else {
-                                writef("%d\r\n", _dot->getEcho());
-                            }
-                            write(done);
-                            break;
-                        case CommandFactory::eATVERBOSE:
-                            if (variant == '1' || variant == '0') {
-                                _dot->setVerbose(variant == '1');
-                            } else {
-                                writef("%d\r\n", _dot->getVerbose());
-                            }
-                            write(done);
-                            break;
-                        case CommandFactory::eATK:
-                            if (variant == '3' || variant == '0') {
-                                _dot->setFlowControl(variant == '3');
-                            } else {
-                                writef("%d\r\n", (_dot->getFlowControl() ? 3 : 0));
-                            }
-                            write(done);
-                            break;
-                        case CommandFactory::eURC:
-                            if (args.size() == 1) {
-                                writef("%d\r\n", urc_enabled);
-                                write(done);
-                            } else if (args[1].length() == 1) {
-                                if (args[1][0] != '?' && args[1][0] != '0' && args[1][0] != '1') {
-#if MTS_CMD_TERM_VERBOSE
-                                    write("Invalid argument\r\n");
-#endif
-                                    write(error);
-                                } else if (args[1][0] == '?') {
-#if MTS_CMD_TERM_VERBOSE
-                                    write("(0:disable,1:enable)\r\n");
-                                    write(done);
-#else
-                                    write(error);
-#endif
-                                } else {
-                                    urc_enabled = (args[1][0] == '1');
-                                    write(done);
-                                }
-                            } else {
-                                write(error);
-                            }
-                            break;
-                        case CommandFactory::eLW:
-                            writef("%s\r\n", _dot->getMACVersion());
-                            write(done);
-                            break;
-                        case CommandFactory::eMEM:
-                            free_mem();
-                            write(done);
-                            break;
-                        case CommandFactory::eSD:
-                            if (_dot->getNetworkJoinStatus()) {
-                                logDebug("Enter Serial Mode");
-                                write(connect);
-                                serial_data_mode = true;
-                                _serialp->clearEscaped();
-                                _mode = mDot::SERIAL_MODE;
-                            } else {
-                                logDebug("Network Not Joined");
-                                write("Network Not Joined\r\n");
-                                write(error);
-                            }
-                            break;
-                        case CommandFactory::eATW:
-                            if (!_dot->saveConfig()) {
-#if MTS_CMD_TERM_VERBOSE
-                                write("Failed to save to flash");
-#endif
-                                write(error);
-                            } else {
-                                write(done);
-                            }
-                            break;
-                        case CommandFactory::eATWP:
-                            if (!_dot->saveProtectedConfig()) {
-#if MTS_CMD_TERM_VERBOSE
-                                write("Failed to save to flash");
-#endif
-                                write(error);
-                            } else {
-                                write(done);
-                            }
-                            break;
-                        case CommandFactory::eSS:
-                            _dot->saveNetworkSession();
-                            write(done);
-                            break;
-                        case CommandFactory::eDP:
-                            writef("%d\r\n",
-                                _dot->getDataPending() ||
-                                _dot->hasMacCommands() ||
-                                _dot->getAckRequested());
-                            write(done);
-                            break;
-                        case CommandFactory::eSLEEP: {
-                            bool temp_sleep_standby;
-                            bool valid = false;
-                            if ((args.size() > 1) && (args[1].length() == 1)) {
-                                if ((args[1][0] != '?' && args[1][0] != '0' && args[1][0] != '1')) {
-#if MTS_CMD_TERM_VERBOSE
-                                    write("Invalid argument\r\n");
-#endif
-                                    write(error);
-                                } else if (args[1][0] == '?') {
-#if MTS_CMD_TERM_VERBOSE
-                                    write("(0:deepsleep,1:sleep)\r\n");
-                                    write(done);
-#else
-                                    write(error);
-#endif
-                                } else {
-                                    valid = true;
-                                    temp_sleep_standby = (args[1][0] == '0');
-                                }
-                            } else if (args.size() == 1) {
-                                valid = true;
-                                temp_sleep_standby = _sleep_standby;
-                            } else {
-                                write(error);
-                            }
-
-                            if (valid) {
-                                if (!_dot->getIsIdle()) {
-                                    write("Dot is not idle\r\n");
-                                    write(error);
-                                } else {
-                                    _sleep_standby = temp_sleep_standby;
-#if defined(TARGET_MTS_MDOT_F411RE)
-                                    //Read the board ID. If all 0's, it is revision B. This hardware does not support deep sleep.
-                                    DigitalIn ID2(PC_4);
-                                    DigitalIn ID1(PC_5);
-                                    DigitalIn ID0(PD_2);
-                                    if(ID2 == 0 && ID1 == 0 && ID0 == 0 && _sleep_standby == 1){
-                                        _sleep_standby = 0;
-                                        logWarning("This hardware version does not support deep sleep. Using sleep mode instead.");
-                                    }
-#endif
-                                    write(done);
-                                    if (_dot->getBaud() < 9600)
-                                        osDelay(20);
-                                    else if (_dot->getBaud() > 57600)
-                                        osDelay(2);
-                                    else
-                                        osDelay(5);
-                                    this->sleep(_sleep_standby);
-                                    osDelay(1);
-                                }
-                            }
-                            break;
-                        }
-                        default:
-                            handled = false;
-                            // Unhandled command
-                            // Will only reach here if the table contains commands that do not have explicit cases
-                            break;
-                    }
-                }
-#ifdef MTS_RADIO_DEBUG_COMMANDS
-            } else if (args[0].find("AT+TM!") == 0 && args[0].length() == 6) {
-                handled = true;
-                if ((args.size() > 1) && (args[1].length() == 1)) {
-                    if (args[1][0] == '0' || args[1][0] == '1') {
-                        _dot->setTestModeEnabled(args[1][0] == '1');
-                        _dot->saveConfig();
-                        write(done);
-                    } else {
-                        write(error);
-                    }
-                } else {
-                    writef("%d\r\n", _dot->getTestModeEnabled());
+            write(done);
+        } else if (args[0].find("AT+LW") == 0) {
+            if (args.size() >= 2 && (args[1] != "?")) {
+                write("Invalid argument\r\n");
+                write(error);
+            } else {
+                writef("%s\r\n", _dot->getMACVersion());
+                write(done);
+            }
+        } else if (args[0] == "AT+SD") {
+            if (_dot->getNetworkJoinStatus()) {
+                logDebug("Enter Serial Mode");
+                write(connect);
+                serial_data_mode = true;
+                _serialp->clearEscaped();
+                _mode = mDot::SERIAL_MODE;
+            } else {
+                logDebug("Network Not Joined");
+                write("Network Not Joined\r\n");
+                write(error);
+            }
+        } else if (args[0] == "AT+SLEEP") {
+            if (args.size() >= 2 && (args[1] != "?" && args[1] != "0" && args[1] != "1")) {
+                write("Invalid argument\r\n");
+                write(error);
+            } else {
+                if (args.size() > 1 && args[1] == "?") {
+                    write("(0:deepsleep,1:sleep)\r\n");
                     write(done);
-                }
+                } else {
+                    _sleep_standby = !(args.size() > 1 && args[1] == "1");
+#if defined(TARGET_MTS_MDOT_F411RE)
+                    //Read the board ID. If all 0's, it is revision B. This hardware does not support deep sleep.
+                    DigitalIn ID2(PC_4);
+                    DigitalIn ID1(PC_5);
+                    DigitalIn ID0(PD_2);
+                    if(ID2 == 0 && ID1 == 0 && ID0 == 0 && _sleep_standby == 1){
+                        _sleep_standby = 0;
+                        logWarning("This hardware version does not support deep sleep. Using sleep mode instead.");
+                    }
 #endif
+                    write(done);
+                    if (_dot->getBaud() < 9600)
+                        osDelay(20);
+                    else if (_dot->getBaud() > 57600)
+                        osDelay(2);
+                    else
+                        osDelay(5);
+                    this->sleep(_sleep_standby);
+                    osDelay(1);
+                }
             }
-        }
-
-        if (!handled) {
+        } else {
             bool found = false;
             bool query = false;
 
             std::string lookfor = args[0];
 
-#if MTS_CMD_TERM_VERBOSE
             // per command help
-            if ((args[0].find("?") == 0 || args[0].find("HELP") == 0)) {
+            if ((args[0].find("?") == 0 || args[0].find("HELP") == 0))
                 lookfor = mts::Text::toUpper(args[1]);
-            }
-#endif
+
             // trim off any trailing '?' and mark as a query command
             if (args[0].rfind("?") == args[0].length() - 1) {
                 query = true;
@@ -960,59 +698,35 @@ void CommandTerminal::start() {
                 // match CMD or CMD? syntax if command is queryable
                 if (lookfor == cmd->text() && (!query || (query && cmd->queryable()))) {
                     found = true;
-                    _errorMessage.clear();
-#if MTS_CMD_TERM_VERBOSE
                     if (args[0] == "HELP") {
                         writef("%s%s", cmd->help().c_str(), newline);
                         write(done);
                     }
+
                     else if (args.size() > 1 && args[1] == "?") {
                         writef("%s%s", cmd->usage().c_str(), newline);
                         write(done);
                     } else if (!cmd->verify(args)) {
-#else
-                    if (args.size() > 1 && args[1] == "?") {
-                        write(error);
-                    } else if (!cmd->verify(args)) {
-#endif
-                        if (!_errorMessage.empty()) {
-                            writef("%s%s", _errorMessage.c_str(), newline);
-                        }
-                        write(error);
+                        writef("%s%s", _errorMessage.c_str(), newline);
+                        writef("%s", error);
                     } else {
-                        _errorMessage.clear();
                         if (cmd->action(args) == 0) {
                             writef("%s", done);
                         } else {
-                            // Action was not successful
-                            if (_errorMessage.empty()) {
-                                // If no error message was set, check for error recorded in mdot
-                                std::string dot_error = _dot->getLastError();
-                                if (!dot_error.empty()) {
-                                    writef("%s%s", dot_error.c_str(), newline);
-                                }
-                            } else {
-                                // Command set an error message
-                                writef("%s%s", _errorMessage.c_str(), newline);
-                            }
-                            write(error);
+                            writef("%s%s", _errorMessage.c_str(), newline);
+                            writef("%s", error);
                         }
                     }
                 }
 
                 delete cmd;
-
-                if (found) {
-                    break;
-                }
             }
 
             if (!found) {
-                write(command_error);
-                write(error);
+                writef("%s", command_error);
+                writef("%s", error);
             }
         }
-
 
         _join_status_pin = CommandTerminal::Dot()->getNetworkJoinStatus();
         command_processing = false;
@@ -1342,10 +1056,9 @@ void CommandTerminal::RadioEvent::RxTimeout(uint8_t slot) {
     _packet_rx_pin = 0;
 }
 
-void CommandTerminal::RadioEvent::PacketRx(uint8_t port, uint8_t *payload, uint16_t size, int16_t rssi, int16_t snr, lora::DownlinkControl ctrl, uint8_t slot, uint8_t retries, uint32_t address, uint32_t fcnt, bool dupRx) {
-    mDotEvent::PacketRx(port, payload, size, rssi, snr, ctrl, slot, retries, address, fcnt, dupRx);
+void CommandTerminal::RadioEvent::PacketRx(uint8_t port, uint8_t *payload, uint16_t size, int16_t rssi, int16_t snr, lora::DownlinkControl ctrl, uint8_t slot, uint8_t retries, uint32_t address, bool dupRx) {
+    mDotEvent::PacketRx(port, payload, size, rssi, snr, ctrl, slot, retries, address, dupRx);
     _rxAddress = address;
-    _rxFcnt = fcnt;
 
     if(port == 200 || port == 201 || port == 202) {
         Fota::getInstance()->processCmd(payload, port, size);
@@ -1377,270 +1090,10 @@ void CommandTerminal::RadioEvent::PacketRx(uint8_t port, uint8_t *payload, uint1
             if (CommandTerminal::Dot()->getRxOutput() >= mDot::EXTENDED) {
                 formatPacket(RxPayload, size, CommandTerminal::Dot()->getRxOutput() == mDot::EXTENDED_HEX);
             } else {
-                CommandTerminal::Serial()->write("RECV\r\n", 6);
+                CommandTerminal::Serial()->writef("RECV\r\n");
             }
         }
     }
-}
-
-void CommandTerminal::RadioEvent::handleTestModePacket() {
-#ifdef MTS_RADIO_DEBUG_COMMANDS
-    static uint32_t last_rx_seq = 0;
-    bool start_test = false;
-
-    std::string packet = mts::Text::bin2hexString(RxPayload, RxPayloadSize);
-
-        CommandTerminal::Dot()->getSettings()->Test.TestMode = true;
-
-        last_rx_seq = CommandTerminal::Dot()->getSettings()->Session.UplinkCounter;
-
-        uint16_t testDownlinkCounter = 0;
-        uint32_t txPeriod = 5000;
-        bool testConfirmed = false;
-
-        // init counter
-        std::vector<uint8_t> data;
-        uint8_t savedPort = CommandTerminal::Dot()->getAppPort();
-        uint8_t savedAcks = CommandTerminal::Dot()->getAck();
-        bool savedAdr = CommandTerminal::Dot()->getAdr();
-
-        CommandTerminal::Dot()->setAck(0);
-        CommandTerminal::Dot()->setAdr(true);
-        CommandTerminal::Dot()->setAppPort(224);
-
-        Timer sentTimer;
-        sentTimer.start();
-        while (CommandTerminal::Dot()->getSettings()->Test.TestMode) {
-TEST_START:
-            // if (waitingForBeacon && BeaconLocked) {
-            //     logInfo("send BeaconRxStatusInd");
-            //     data.clear();
-            //     data.push_back(0x40);
-            //     for (size_t i = 0; i < sizeof(BeaconData); ++i) {
-            //         data.push_back(((uint8_t*)&BeaconData)[i]);
-            //     }
-            // } else
-
-            if (RxPort == 224) {
-                data.clear();
-
-                std::string packet = mts::Text::bin2hexString(RxPayload, RxPayloadSize);
-                logDebug("Test Mode AppPort : %d", CommandTerminal::Dot()->getAppPort());
-                logDebug("Test Mode Packet : %s", packet.c_str());
-
-                switch (RxPayload[0]) {
-                    case 0x00: { // PackageVersionReq
-                        data.push_back(0x00);
-                        data.push_back(0x06);
-                        data.push_back(0x01);
-                        break;
-                    }
-                    case 0x01: { // DutResetReq
-                        if (RxPayloadSize == 1) {
-                            CommandTerminal::Dot()->resetCpu();
-                        }
-                        break;
-                    }
-                    case 0x02: { // DutJoinReq
-                        if (RxPayloadSize == 1) {
-                            CommandTerminal::Dot()->joinNetworkOnce();
-                            return;
-                        }
-                        break;
-                    }
-                    case 0x03: { // SwitchClassReq
-                        std::string cls = "A";
-                        if (RxPayload[1] > 0 && RxPayload[1] < 3) {
-                            cls = RxPayload[1] == 0x01 ? "B" : "C";
-                        }
-                        CommandTerminal::Dot()->setClass(cls);
-                        break;
-                    }
-                    case 0x04: { // ADR Enabled/Disable
-                        if (RxPayload[1] == 1)
-                            CommandTerminal::Dot()->setAdr(true);
-                        else
-                            CommandTerminal::Dot()->setAdr(false);
-                        break;
-                    }
-                    case 0x05: { // RegionalDutyCycleCtrlReq
-                        if (RxPayload[1] == 0)
-                            CommandTerminal::Dot()->setDisableDutyCycle(true);
-                        else
-                            CommandTerminal::Dot()->setDisableDutyCycle(false);
-
-                        break;
-                    }
-                    case 0x06: { // TxPeriodicityChangeReq
-                        if (RxPayload[1] < 2)
-                            // 0, 1 => 5s
-                            txPeriod = 5000U;
-                        else if (RxPayload[1] < 8)
-                            // 2 - 7 => 10s - 60s
-                            txPeriod = (RxPayload[1] - 1) * 10000U;
-                        else if (RxPayload[1] < 11) {
-                            // 8, 9, 10 => 120s, 240s, 480s
-                            txPeriod = 120 * (1 << (RxPayload[1] - 8)) * 1000U;
-                        }
-                        break;
-                    }
-                    case 0x07: { // TxFramesCtrl
-                        if (RxPayload[1] == 0) {
-                            // NO-OP
-                        } else if (RxPayload[1] == 1) {
-                            testConfirmed = false;
-                            CommandTerminal::Dot()->getSettings()->Network.AckEnabled = 0;
-                        } else if (RxPayload[1] == 2) {
-                            testConfirmed = true;
-                            // if ADR has set nbTrans then use the current setting
-                            CommandTerminal::Dot()->getSettings()->Network.AckEnabled = 1;
-                            if (CommandTerminal::Dot()->getSettings()->Session.Redundancy == 0) {
-                                CommandTerminal::Dot()->getSettings()->Session.Redundancy = 1;
-                            }
-                        }
-                        break;
-                    }
-                    case 0x08: { // EchoPayloadReq
-                        data.push_back(0x08);
-                        for (size_t i = 1; i < RxPayloadSize; i++) {
-                            data.push_back(RxPayload[i] + 1);
-                        }
-                        break;
-                    }
-                    case 0x09: { // RxAppCntReq
-                        data.push_back(0x09);
-                        data.push_back(testDownlinkCounter & 0xFF);
-                        data.push_back(testDownlinkCounter >> 8);
-                        break;
-                    }
-                    case 0x0A: { // RxAppCntResetReq
-                        testDownlinkCounter = 0;
-                        break;
-                    }
-                    case 0x20: { // LinkCheckReq
-                        CommandTerminal::Dot()->addMacCommand(lora::MOTE_MAC_LINK_CHECK_REQ, 0, 0);
-                        break;
-                    }
-                    case 0x21: { // DeviceTimeReq
-                        CommandTerminal::Dot()->addDeviceTimeRequest();
-                        break;
-                    }
-                    case 0x22: { // PingSlotInfo
-                        CommandTerminal::Dot()->setPingPeriodicity(RxPayload[1]);
-                        CommandTerminal::Dot()->addMacCommand(lora::MOTE_MAC_PING_SLOT_INFO_REQ, RxPayload[1], 0);
-                        break;
-                    }
-                    case 0x7D: { // TxCw
-                        uint32_t freq = 0;
-                        uint16_t timeout = 0;
-                        uint8_t power = 0;
-
-                        timeout = RxPayload[2] << 8 | RxPayload[1];
-                        freq = (RxPayload[5] << 16 | RxPayload[4] << 8 | RxPayload[2]) * 100;
-                        power = RxPayload[6];
-
-                        CommandTerminal::Dot()->sendContinuous(true, timeout * 1000, freq, power);
-                        break;
-                    }
-                    case 0x7E: { // DutFPort224DisableReq
-                        _dot->setTestModeEnabled(false);
-                        CommandTerminal::Dot()->getSettings()->Test.TestMode = false;
-                        _dot->saveConfig();
-                        CommandTerminal::Dot()->resetCpu();
-                        break;
-                    }
-                    case 0x7F: { // DutVersionReq
-                        std::string version = AT_APPLICATION_VERSION;
-                        int temp = 0;
-
-                        data.push_back(0x7F);
-                        int ret = sscanf(&version[0], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_MAJOR; // MAJOR
-                        ret = sscanf(&version[2], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_MINOR; // MINOR
-                        ret = sscanf(&version[4], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_PATCH; // PATCH
-                        if (version.size() > 7) {
-                            ret = sscanf(&version[6], "%d", &temp);
-                            data.push_back(temp); // AT_APP_VERSION_PATCH; // PATCH
-                        } else {
-                            data.push_back(0); // AT_APP_VERSION_PATCH; // PATCH
-                        }
-                        version = LW_VERSION;
-                        ret = sscanf(&version[0], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_MAJOR; // MAJOR
-                        ret = sscanf(&version[2], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_MINOR; // MINOR
-                        ret = sscanf(&version[4], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_PATCH; // PATCH
-                        if (version.size() > 7) {
-                            ret = sscanf(&version[6], "%d", &temp);
-                            data.push_back(temp); // AT_APP_VERSION_PATCH; // PATCH
-                        } else {
-                            data.push_back(0); // AT_APP_VERSION_PATCH; // PATCH
-                        }
-                        version = RP_VERSION;
-                        ret = sscanf(&version[0], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_MAJOR; // MAJOR
-                        ret = sscanf(&version[2], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_MINOR; // MINOR
-                        ret = sscanf(&version[4], "%d", &temp);
-                        data.push_back(temp); // AT_APP_VERSION_PATCH; // PATCH
-                        if (version.size() > 7) {
-                            ret = sscanf(&version[6], "%d", &temp);
-                            data.push_back(temp); // AT_APP_VERSION_PATCH; // PATCH
-                        } else {
-                            data.push_back(0); // AT_APP_VERSION_PATCH; // PATCH
-                        }
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-            }
-
-            do {
-                while (std::chrono::duration_cast<std::chrono::milliseconds>(sentTimer.elapsed_time()).count() < txPeriod
-                    || CommandTerminal::Dot()->getNextTxMs() > 0) {
-                    // if (waitingForBeacon && BeaconLocked) {
-                    //     goto TEST_START;
-                    // }
-                    osDelay(1000);
-                }
-
-                sentTimer.reset();
-
-                if (data.size() == 0) {
-                    CommandTerminal::Dot()->setAppPort(1);
-                    data.push_back(0xFF);
-                } else {
-                    CommandTerminal::Dot()->setAppPort(224);
-                }
-
-                if (CommandTerminal::Dot()->send(data, testConfirmed) == mDot::MDOT_MAX_PAYLOAD_EXCEEDED) {
-                    data.clear();
-                    RxPort = 0;
-                    goto TEST_START;
-                }
-
-                if (PacketReceived) {
-                    last_rx_seq = CommandTerminal::Dot()->getSettings()->Session.UplinkCounter;
-                }
-
-                data.clear();
-
-            } while (!AckReceived && CommandTerminal::Dot()->recv(data) != mDot::MDOT_OK);
-
-            if (AckReceived || (PacketReceived && (RxPort != 0 || RxPayloadSize == 0))) {
-                testDownlinkCounter++;
-                logDebug("Incremented downlink cnt %d", testDownlinkCounter);
-            }
-
-            PacketReceived = false;
-            AckReceived = false;
-        }
-#endif
 }
 
 uint8_t CommandTerminal::getBatteryLevel() {
@@ -1652,6 +1105,7 @@ void CommandTerminal::setBatteryLevel(uint8_t battery_level) {
 }
 
 void CommandTerminal::formatPacket(uint8_t* payload, uint16_t size, bool hex) {
+    uint32_t fcnt = _dot->getDownLinkCounter();
 
     if(_dot->getAckRequested()) {
         f_data[0] = 0;
@@ -1663,10 +1117,10 @@ void CommandTerminal::formatPacket(uint8_t* payload, uint16_t size, bool hex) {
     f_data[2] = (_rxAddress >> 8) & 0xFF;
     f_data[3] = (_rxAddress >> 16) & 0xFF;
     f_data[4] = (_rxAddress >> 24) & 0xFF;
-    f_data[5] = _rxFcnt & 0xFF;
-    f_data[6] = (_rxFcnt >> 8) & 0xFF;
-    f_data[7] = (_rxFcnt >> 16) & 0xFF;
-    f_data[8] = (_rxFcnt >> 24) & 0xFF;
+    f_data[5] = fcnt & 0xFF;
+    f_data[6] = (fcnt >> 8) & 0xFF;
+    f_data[7] = (fcnt >> 16) & 0xFF;
+    f_data[8] = (fcnt >> 24) & 0xFF;
     f_data[9] = _events->RxPort;
 
     for(int i = 0; i < size; i++)
@@ -1682,6 +1136,7 @@ void CommandTerminal::formatPacket(uint8_t* payload, uint16_t size, bool hex) {
 
 
 std::string CommandTerminal::formatPacket(std::vector<uint8_t> payload, bool hex) {
+    uint32_t fcnt = _dot->getDownLinkCounter();
 
     if(_dot->getAckRequested()) {
         f_data[0] = 0;
@@ -1693,10 +1148,10 @@ std::string CommandTerminal::formatPacket(std::vector<uint8_t> payload, bool hex
     f_data[2] = (_rxAddress >> 8) & 0xFF;
     f_data[3] = (_rxAddress >> 16) & 0xFF;
     f_data[4] = (_rxAddress >> 24) & 0xFF;
-    f_data[5] = _rxFcnt & 0xFF;
-    f_data[6] = (_rxFcnt >> 8) & 0xFF;
-    f_data[7] = (_rxFcnt >> 16) & 0xFF;
-    f_data[8] = (_rxFcnt >> 24) & 0xFF;
+    f_data[5] = fcnt & 0xFF;
+    f_data[6] = (fcnt >> 8) & 0xFF;
+    f_data[7] = (fcnt >> 16) & 0xFF;
+    f_data[8] = (fcnt >> 24) & 0xFF;
     f_data[9] = _events->RxPort;
 
     for(size_t i = 0; i < payload.size(); i++)

@@ -1,29 +1,30 @@
 #include "CmdSendContinuous.h"
 #include "CommandTerminal.h"
 
-CmdSendContinuous::CmdSendContinuous() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Send Continuous", "AT+SENDC", "Send un-modulated data continuously", "[TIMEOUT],[FREQUENCY],[POWER]")
+CmdSendContinuous::CmdSendContinuous()
+: Command("Send Continuous", "AT+SENDC",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Send un-modulated data continuously",
 #else
-    Command("AT+SENDC")
+    "",
 #endif
-{
+    "[TIMEOUT],[FREQUENCY],[POWER]") {
 }
 
 uint32_t CmdSendContinuous::action(const std::vector<std::string>& args) {
 
-    int timeout = 0;
-    int frequency = 0;
-    int power = -1;
+    uint32_t timeout = 0;
+    uint32_t frequency = 0;
+    int8_t power = -1;
 
     if (args.size() > 1) {
-        sscanf(args[1].c_str(), "%d", &timeout);
+        timeout = atoi(args[1].c_str());
     }
     if (args.size() > 2) {
-        sscanf(args[2].c_str(), "%d", &frequency);
+        frequency = atoi(args[2].c_str());
     }
     if (args.size() > 3) {
-        sscanf(args[3].c_str(), "%d", &power);
+        power = atoi(args[3].c_str());
     }
 
     CommandTerminal::Dot()->sendContinuous(true, timeout, frequency, power);
@@ -31,23 +32,7 @@ uint32_t CmdSendContinuous::action(const std::vector<std::string>& args) {
     return 0;
 }
 
-bool CmdSendContinuous::verify(const std::vector<std::string>& args)
-{
-    int arg;
-
-    if (args.size() == 1)
-        return true;
-
-    // Verify all optional arguments are valid numbers
-    // No range checking because this command is for test use
-    for (size_t i = 1; i < args.size(); ++i) {
-        if (sscanf(args[i].c_str(), "%d", &arg) != 1) {
-#if MTS_CMD_TERM_VERBOSE
-            CommandTerminal::setErrorMessage("Invalid argument");
-#endif
-            return false;
-        }
-    }
+bool CmdSendContinuous::verify(const std::vector<std::string>& args) {
 
     return true;
 }

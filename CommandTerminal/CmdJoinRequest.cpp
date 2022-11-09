@@ -1,13 +1,15 @@
 #include "CmdJoinRequest.h"
 #include "CommandTerminal.h"
 
-CmdJoinRequest::CmdJoinRequest() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Join Network", "AT+JOIN", "Join network, provide argument of '1' to force join (acquire network address and session keys)", "(force:1)")
+CmdJoinRequest::CmdJoinRequest()
+:
+  Command("Join Network", "AT+JOIN",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Join network, provide argument of '1' to force join (acquire network address and session keys)",
 #else
-    Command("AT+JOIN")
+    "",
 #endif
-{
+    "(force:1)") {
 
 }
 
@@ -37,8 +39,8 @@ uint32_t CmdJoinRequest::action(const std::vector<std::string>& args) {
         //CommandTerminal::Serial()->attach();
         return 0;
     } else {
-        // std::string error = mDot::getReturnCodeString(code)  + " - " + CommandTerminal::Dot()->getLastError();
-        // CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
+        std::string error = mDot::getReturnCodeString(code)  + " - " + CommandTerminal::Dot()->getLastError();
+        CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
     }
 
     //CommandTerminal::Serial()->attach();
@@ -49,8 +51,6 @@ bool CmdJoinRequest::verify(const std::vector<std::string>& args) {
     if (args.size() == 1 || (args.size() == 2 && args[1] == "1"))
         return true;
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
