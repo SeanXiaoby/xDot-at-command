@@ -1,0 +1,31 @@
+#include "CmdNetworkLinkCheck.h"
+#include "CommandTerminal.h"
+
+CmdNetworkLinkCheck::CmdNetworkLinkCheck() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("Network Link Check", "AT+NLC", "Perform network link check, displays dBm above floor, number of gateways in range and optional packet payload if received", "(0-254),(1-)")
+#else
+    Command("AT+NLC")
+#endif
+{
+
+}
+
+uint32_t CmdNetworkLinkCheck::action(const std::vector<std::string>& args) {
+    mDot::link_check lc;
+
+    lc = CommandTerminal::Dot()->networkLinkCheck();
+    if (lc.status) {
+        CommandTerminal::Serial()->writef("%u,%lu\r\n", lc.dBm, lc.gateways);
+
+        if (!lc.payload.empty())
+            CommandTerminal::Serial()->writef("%s\r\n", CommandTerminal::formatPacketData(lc.payload, CommandTerminal::Dot()->getRxOutput()).c_str());
+
+    } else {
+        CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
+        return 1;
+    }
+
+    return 0;
+}
+
