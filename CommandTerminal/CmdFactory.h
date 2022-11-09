@@ -1,0 +1,115 @@
+#ifndef __CMDFACTORY_H__
+#define __CMDFACTORY_H__
+
+#include "Commands.h"
+
+#include <string>
+
+class CmdFactory
+{
+public:
+    CmdFactory() { };
+    ~CmdFactory() { };
+
+    typedef enum {
+        eAT,
+        eATI,
+        eATZ,
+        eATE,
+        eATVERBOSE,
+        eATK,
+        eATF,
+        eATW,
+        eATV,
+        eATS,
+        eATR,
+        eIPR,
+        eDIPR,
+        eSMODE,
+        eDFREQ,
+        eFREQ,
+        eFSB,
+        ePN,
+        eDI,
+        eDC,
+        eLBT,
+        eAP,
+        eNA,
+        eNSK,
+        eDSK,
+        eULC,
+        eDLC,
+        eSS,
+        eRS,
+        eNK,
+        eNI,
+        eJD,
+        eJOIN,
+        eJR,
+        eNJM,
+        ePS,
+        eNJS,
+        eNLC,
+        eLCC,
+        eLCT,
+        eENC,
+        eRSSI,
+        eSNR,
+        eDP,
+        eSDR,
+        eCHM,
+        eTXDR,
+        eTXP,
+        eANT,
+        eTXF,
+        eFO,
+        eTXW,
+        eTXCH,
+        eTXN,
+        eTXS,
+        eTOA,
+        eRXD,
+        eRXO,
+        eCRC,
+        eADR,
+        eACK,
+        eREP,
+        ePP,
+        eMAC,
+        eSEND,
+        eSENDB,
+        eRECV,
+        eSD,
+        eSLEEP,
+        eSDCE,
+        eWM,
+        eWI,
+        eWP,
+        eWD,
+        eWTO,
+        ePING,
+        eFOTA,
+        eLOG,
+        eGPSTIME,
+        eBLS,
+        eBAT,
+        eLBTRSSI,
+        ePRINT_TEST,
+        eRXDR,
+        eSENDI,
+        eSENDC,
+#ifdef MTS_RADIO_DEBUG_COMMANDS
+        ePRINT_DEBUG,
+        eATWP,
+        eDREGS,
+        eERASE,
+        eDD,
+        eRXF,
+        eRECVC,
+#endif
+        NUMBER_OF_CMDS
+    } CmdId_t;
+
+    static Command* Create(CmdId_t cmd);
+};
+#endif

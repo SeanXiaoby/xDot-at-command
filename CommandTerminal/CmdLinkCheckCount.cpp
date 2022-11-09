@@ -1,11 +1,13 @@
 #include "CmdLinkCheckCount.h"
 
 CmdLinkCheckCount::CmdLinkCheckCount() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Link Check Count", "AT+LCC", "Set number of packets between each link check if ACK's are disabled", "(0:off,N:Packets (max 255))")
+        Command("Link Check Count", "AT+LCC",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Set number of packets between each link check if ACK's are disabled",
 #else
-    Command("AT+LCC")
+    "",
 #endif
+    "(0:off,N:Packets (max 255))")
 {
     _queryable = true;
 }
@@ -23,6 +25,7 @@ uint32_t CmdLinkCheckCount::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setLinkCheckCount(count) != mDot::MDOT_OK)
         {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -39,24 +42,18 @@ bool CmdLinkCheckCount::verify(const std::vector<std::string>& args)
     {
         int count;
         if (sscanf(args[1].c_str(), "%d", &count) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (count < 0 || count > 255) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid count, expects (0:off,N:Packets (max 255))");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

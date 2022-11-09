@@ -9,6 +9,7 @@ public:
 
     CmdResetStats();
     virtual uint32_t action(const std::vector<std::string>& args);
+    virtual bool verify(const std::vector<std::string>& args) { return true; }
 
 private:
 

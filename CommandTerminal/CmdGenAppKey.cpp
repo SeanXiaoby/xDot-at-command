@@ -1,11 +1,13 @@
 #include "CmdGenAppKey.h"
 
 CmdGenAppKey::CmdGenAppKey() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Generic App Key", "AT+GK", "Configured generic app key", "(hex:16)")
+    Command("Generic App Key", "AT+GK",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Configured generic app key",
 #else
-    Command("AT+GK")
+    "",
 #endif
+    "(hex:16)")
 {
     _queryable = true;
 }
@@ -28,6 +30,7 @@ uint32_t CmdGenAppKey::action(const std::vector<std::string>& args)
         }
         else
         {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -43,18 +46,14 @@ bool CmdGenAppKey::verify(const std::vector<std::string>& args)
     if (args.size() == 2) {
 
         if (!isHexString(args[1], 16)) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid key, expects (hex:16)");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
 

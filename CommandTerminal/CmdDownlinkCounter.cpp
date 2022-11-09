@@ -1,12 +1,14 @@
 #include "CmdDownlinkCounter.h"
 
-CmdDownlinkCounter::CmdDownlinkCounter() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Downlink Counter", "AT+DLC", "Get or set the downlink counter", "(0-4294967295) or (1-8),(0-4294967295)")
+CmdDownlinkCounter::CmdDownlinkCounter()
+:
+  Command("Downlink Counter", "AT+DLC",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Get or set the downlink counter",
 #else
-    Command("AT+DLC")
+    "",
 #endif
-{
+    "(0-4294967295) or (1-8),(0-4294967295)") {
 
     _queryable = true;
 }
@@ -19,6 +21,7 @@ uint32_t CmdDownlinkCounter::action(const std::vector<std::string>& args) {
         sscanf(args[1].c_str(), "%lu", &count);
 
         if (CommandTerminal::Dot()->setDownLinkCounter(count) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     } else if (args.size() == 3) {
@@ -31,6 +34,7 @@ uint32_t CmdDownlinkCounter::action(const std::vector<std::string>& args) {
             sscanf(args[2].c_str(), "%lu", &count);
 
             if (CommandTerminal::Dot()->setMulticastDownlinkCounter(index-1, count) != mDot::MDOT_OK) {
+                CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
                 return 1;
             }
         }
@@ -62,9 +66,7 @@ bool CmdDownlinkCounter::verify(const std::vector<std::string>& args) {
         }
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
 

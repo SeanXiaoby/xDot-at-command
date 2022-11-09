@@ -1,13 +1,14 @@
 #include "CmdSendStringOnInterval.h"
 #include "CommandTerminal.h"
 
-CmdSendStringOnInterval::CmdSendStringOnInterval() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Send On Interval", "AT+SENDI", "Sends supplied packet data on interval between sends, output any received packets (escape sequence: +++)", "(1-2147483647) ms,(string:242)")
+CmdSendStringOnInterval::CmdSendStringOnInterval()
+: Command("Send On Interval", "AT+SENDI",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Sends supplied packet data on interval between sends, output any received packets (escape sequence: +++)",
 #else
-    Command("AT+SENDI")
+    "",
 #endif
-{
+    "(1-2147483647) ms,(string:242)") {
 
 }
 
@@ -54,6 +55,7 @@ uint32_t CmdSendStringOnInterval::action(const std::vector<std::string>& args) {
             std::string error = CommandTerminal::Dot()->getLastError();
 
             if (code == mDot::MDOT_INVALID_PARAM) {
+                CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
                 return 1;
             } else {
                 CommandTerminal::Serial()->writef("%s\r\n", error.c_str());
@@ -66,7 +68,13 @@ uint32_t CmdSendStringOnInterval::action(const std::vector<std::string>& args) {
             }
 
             if (CommandTerminal::Dot()->getTxWait() || CommandTerminal::Dot()->getAck() > 0) {
-                printRecvData();
+                std::vector<uint8_t> rx_data;
+
+                if (CommandTerminal::Dot()->recv(rx_data) == mDot::MDOT_OK) {
+                    if (!rx_data.empty()) {
+                        CommandTerminal::Serial()->writef("%s\r\n", CommandTerminal::formatPacketData(rx_data, CommandTerminal::Dot()->getRxOutput()).c_str());
+                    }
+                }
             } else if (!CommandTerminal::Dot()->getTxWait()) {
                 CommandTerminal::Dot()->cancelRxWindow();
             }
@@ -84,33 +92,25 @@ bool CmdSendStringOnInterval::verify(const std::vector<std::string>& args) {
         size_t size = 0;
 
         if (sscanf(args[1].c_str(), "%d", &interval) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (interval < 1 || interval > INT_MAX-1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid interval, expects (1-2147483646) ms");
-#endif
             return false;
         }
 
         for (size_t i = 2; i < args.size() - 1; i++)
             size += args[i].size() + 1;
         if (size > 242) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid packet, expects (string:242)");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

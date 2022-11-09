@@ -1,12 +1,13 @@
 #include "CmdWakeInterval.h"
 
 CmdWakeInterval::CmdWakeInterval() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Wake Interval", "AT+WI", "Wakeup interval (seconds)", "(2-2147483646) s")
+ Command("Wake Interval", "AT+WI",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Wakeup interval (seconds)",
 #else
-    Command("AT+WI")
+    "",
 #endif
-{
+    "(2-2147483646) s") {
     _queryable = true;
 }
 
@@ -22,6 +23,7 @@ uint32_t CmdWakeInterval::action(const std::vector<std::string>& args)
         sscanf(args[1].c_str(), "%d", &timeout);
 
         if (CommandTerminal::Dot()->setWakeInterval(timeout) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -37,24 +39,18 @@ bool CmdWakeInterval::verify(const std::vector<std::string>& args)
     if (args.size() == 2) {
         int timeout;
         if (sscanf(args[1].c_str(), "%d", &timeout) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (timeout < 2 || timeout > INT_MAX-1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid interval, expects (2-2147483646) s");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

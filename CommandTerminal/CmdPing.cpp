@@ -1,11 +1,12 @@
 #include "CmdPing.h"
 
-CmdPing::CmdPing() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Send Ping", "AT+PING", "Sends ping and displays the servers received rssi and snr", "(-140-0),(-20.0-20.0)")
+CmdPing::CmdPing() : Command("Send Ping", "AT+PING",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Sends ping and displays the servers received rssi and snr",
 #else
-    Command("AT+PING")
+    "",
 #endif
+    "(-140-0),(-20.0-20.0)")
 {
 }
 
@@ -14,11 +15,12 @@ uint32_t CmdPing::action(const std::vector<std::string>& args)
     mDot::ping_response response;
     response = CommandTerminal::Dot()->ping();
     if (response.status != mDot::MDOT_OK) {
-        // std::string error = mDot::getReturnCodeString(response.status);
+        std::string error = mDot::getReturnCodeString(response.status);
 
-        // if (response.status != mDot::MDOT_NOT_JOINED)
-            // error +=  + " - " + CommandTerminal::Dot()->getLastError();
-            // CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
+        if (response.status != mDot::MDOT_NOT_JOINED)
+            error +=  + " - " + CommandTerminal::Dot()->getLastError();
+
+        CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
         return 1;
     }
 

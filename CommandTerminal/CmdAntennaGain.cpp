@@ -1,11 +1,12 @@
 #include "CmdAntennaGain.h"
 
-CmdAntennaGain::CmdAntennaGain() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Antenna Gain", "AT+ANT", "Gain in dBi of installed antenna (-128-127)", "(-128-127)")
+CmdAntennaGain::CmdAntennaGain() : Command("Antenna Gain", "AT+ANT",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Gain in dBi of installed antenna (-128-127)",
 #else
-    Command("AT+ANT")
+    "",
 #endif
+    "(-128-127)")
 {
     _queryable = true;
 }
@@ -24,6 +25,7 @@ uint32_t CmdAntennaGain::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setAntennaGain(gain) != mDot::MDOT_OK)
         {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
             return 1;
         }
     }
@@ -40,24 +42,18 @@ bool CmdAntennaGain::verify(const std::vector<std::string>& args)
     {
         int gain;
         if (sscanf(args[1].c_str(), "%d", &gain) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (gain < -128 || gain > 127) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid gain, expects (-128-127)");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

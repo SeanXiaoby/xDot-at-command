@@ -1,12 +1,13 @@
 #include "CmdTimeOnAir.h"
 
-CmdTimeOnAir::CmdTimeOnAir() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Time on air", "AT+TOA", "Get time in ms of packet tx with current datarate", "(0-242)")
+CmdTimeOnAir::CmdTimeOnAir()
+: Command("Time on air", "AT+TOA",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Get time in ms of packet tx with current datarate",
 #else
-    Command("AT+TOA")
+    "",
 #endif
-{
+    "(0-242)") {
     _queryable = true;
 }
 
@@ -24,9 +25,7 @@ uint32_t CmdTimeOnAir::action(const std::vector<std::string>& args) {
 bool CmdTimeOnAir::verify(const std::vector<std::string>& args) {
 
     if (args.size() < 2) {
-#if MTS_CMD_TERM_VERBOSE
         CommandTerminal::setErrorMessage("Invalid parameter, expects (0-242)");
-#endif
         return false;
     }
 
@@ -35,9 +34,7 @@ bool CmdTimeOnAir::verify(const std::vector<std::string>& args) {
     sscanf(args[1].c_str(), "%d", &bytes);
 
     if (bytes < 0 || bytes > 242) {
-#if MTS_CMD_TERM_VERBOSE
         CommandTerminal::setErrorMessage("Invalid parameter, expects (0-242)");
-#endif
         return false;
     }
 

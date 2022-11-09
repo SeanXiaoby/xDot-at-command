@@ -2,11 +2,13 @@
 #include <algorithm>
 
 CmdDeviceId::CmdDeviceId() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Device ID", "AT+DI", "Device EUI-64 (MSB) (unique, set at factory) (8 bytes)", "(hex:8)")
+        Command("Device ID", "AT+DI",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Device EUI-64 (MSB) (unique, set at factory) (8 bytes)",
 #else
-    Command("AT+DI")
+    "",
 #endif
+    "(hex:8)")
 {
     _queryable = true;
 }
@@ -27,6 +29,7 @@ uint32_t CmdDeviceId::action(const std::vector<std::string>& args)
         if (CommandTerminal::Dot()->setDeviceId(NewEUI) == mDot::MDOT_OK) {
             CommandTerminal::Serial()->writef("%s\r\n", mts::Text::bin2hexString(NewEUI, "-").c_str());
         } else {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -42,9 +45,7 @@ bool CmdDeviceId::verify(const std::vector<std::string>& args)
     if (args.size() == 2 && isHexString(args[1], 8))
         return true;
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid id, expects (hex:8)");
-#endif
 
     return false;
 }

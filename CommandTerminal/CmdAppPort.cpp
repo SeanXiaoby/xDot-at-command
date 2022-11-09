@@ -7,12 +7,15 @@
 
 #include "CmdAppPort.h"
 
-CmdAppPort::CmdAppPort() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("App Port", "AT+AP", "Port used for application data (1 - 223)", "(1-223)")
+CmdAppPort::CmdAppPort()
+:
+  Command("App Port", "AT+AP",
+#if defined(TARGET_MTS_MDOT_F411RE)
+        "Port used for application data (1 - 223)",
 #else
-    Command("AT+AP")
+        "",
 #endif
+    "(1-223)")
 {
     _queryable = true;
 }
@@ -31,6 +34,8 @@ uint32_t CmdAppPort::action(const std::vector<std::string>& args) {
         sscanf(args[1].c_str(), "%d", &appPort);
 
         if (CommandTerminal::Dot()->setAppPort(appPort) != mDot::MDOT_OK) {
+
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -46,17 +51,13 @@ bool CmdAppPort::verify(const std::vector<std::string>& args) {
         int appPort;
         if (sscanf(args[1].c_str(), "%d", &appPort) == 1) {
             if (appPort > 223 || appPort < 1) {
-#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid app port, expects (1-223)");
-#endif
                 return false;
             }
             return true;
         }
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

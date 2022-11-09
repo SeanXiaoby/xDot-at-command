@@ -1,18 +1,19 @@
 #include "CmdResetCpu.h"
 
-CmdResetCpu::CmdResetCpu() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Reset CPU", "ATZ", "Reset the CPU", "NONE")
+CmdResetCpu::CmdResetCpu() : Command("Reset CPU", "ATZ",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Reset the CPU",
 #else
-    Command("ATZ")
+    "",
 #endif
+    "NONE")
 {
 }
 
 uint32_t CmdResetCpu::action(const std::vector<std::string>& args)
 {
     CommandTerminal::Serial()->writef("\r\nOK\r\n");
-    ThisThread::sleep_for(500ms);
+    wait(0.5);
     CommandTerminal::Dot()->resetCpu();
     return 0;
 }

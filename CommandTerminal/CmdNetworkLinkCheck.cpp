@@ -1,13 +1,15 @@
 #include "CmdNetworkLinkCheck.h"
 #include "CommandTerminal.h"
 
-CmdNetworkLinkCheck::CmdNetworkLinkCheck() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Network Link Check", "AT+NLC", "Perform network link check, displays dBm above floor, number of gateways in range and optional packet payload if received", "(0-254),(1-)")
+CmdNetworkLinkCheck::CmdNetworkLinkCheck()
+:
+  Command("Network Link Check", "AT+NLC",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Perform network link check, displays dBm above floor, number of gateways in range and optional packet payload if received",
 #else
-    Command("AT+NLC")
+    "",
 #endif
-{
+    "(0-254),(1-)") {
 
 }
 

@@ -1,12 +1,13 @@
 #include "CmdTxPower.h"
 
 CmdTxPower::CmdTxPower() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Tx Power", "AT+TXP", "Set the radio TX power before antenna gain in dBm", "(Depends on Channel Plan)")
+    Command("Tx Power", "AT+TXP",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Set the radio TX power before antenna gain in dBm",
 #else
-    Command("AT+TXP")
+    "",
 #endif
-{
+    "(Depends on Channel Plan)") {
     _queryable = true;
 }
 
@@ -23,6 +24,7 @@ uint32_t CmdTxPower::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setTxPower(power) != mDot::MDOT_OK)
         {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -39,30 +41,24 @@ bool CmdTxPower::verify(const std::vector<std::string>& args)
     {
         int power = 0;
         if (sscanf(args[1].c_str(), "%d", &power) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (power < CommandTerminal::Dot()->getMinTxPower() || power > CommandTerminal::Dot()->getMaxTxPower())
         {
-#if MTS_CMD_TERM_VERBOSE
             char buf[8];
             std::string error = "Invalid power, expects ";
             snprintf(buf, sizeof(buf), "(%d-%d)", CommandTerminal::Dot()->getMinTxPower(), CommandTerminal::Dot()->getMaxTxPower());
             error.append(buf);
             CommandTerminal::setErrorMessage(error);
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
 

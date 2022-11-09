@@ -1,11 +1,13 @@
 #include "CmdTxFrequencyOffset.h"
 
 CmdTxFrequencyOffset::CmdTxFrequencyOffset() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Tx Frequency Offset", "AT+FO", "Transmit frequency offset in Hz", "(-32768-32768)")
+    Command("Tx Frequency Offset", "AT+FO",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Transmit frequency offset in Hz",
 #else
-    Command("AT+FO")
+    "",
 #endif
+    "(-32768-32768)")
 {
     _queryable = true;
 }
@@ -36,24 +38,18 @@ bool CmdTxFrequencyOffset::verify(const std::vector<std::string>& args)
     {
         int offset;
         if (sscanf(args[1].c_str(), "%d", &offset) != 1) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
-#endif
             return false;
         }
 
         if (offset < -32768 || offset > 32768) {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid offset, expects (-32768-32768)");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

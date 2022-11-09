@@ -1,11 +1,13 @@
 #include "CmdPublicNetwork.h"
 
 CmdPublicNetwork::CmdPublicNetwork() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Network Mode", "AT+PN", "Set public network mode (0: PRIVATE_MTS, 1: PUBLIC_LORAWAN, 2: PRIVATE_LORAWAN)", "(0-2)")
+        Command("Network Mode", "AT+PN",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Set public network mode (0: PRIVATE_MTS, 1: PUBLIC_LORAWAN, 2: PRIVATE_LORAWAN)",
 #else
-    Command("AT+PN")
+    "",
 #endif
+    "(0-2)")
 {
     _queryable = true;
 }
@@ -27,6 +29,7 @@ uint32_t CmdPublicNetwork::action(const std::vector<std::string>& args)
         }
 
         if (CommandTerminal::Dot()->setPublicNetwork(mode) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -42,17 +45,13 @@ bool CmdPublicNetwork::verify(const std::vector<std::string>& args)
     if (args.size() == 2)
     {
         if (args[1] != "2" && args[1] != "1" && args[1] != "0") {
-#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid parameter, expects (0: PRIVATE_MTS, 1: PUBLIC_LORAWAN, 2: PRIVATE_LORAWAN)");
-#endif
             return false;
         }
 
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }

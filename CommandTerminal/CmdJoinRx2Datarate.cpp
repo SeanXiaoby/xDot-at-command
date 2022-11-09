@@ -1,13 +1,15 @@
 #include "CmdJoinRx2Datarate.h"
 #include "CommandTerminal.h"
 
-CmdJoinRx2Datarate::CmdJoinRx2Datarate() :
-#if MTS_CMD_TERM_VERBOSE
-    Command("Join Rx2 Datarate", "AT+JR2D", "Join Rx2 datarate", "(US:DR8-DR13,AU:DR8-DR13,EU:DR0-DR7)")
+CmdJoinRx2Datarate::CmdJoinRx2Datarate()
+:
+  Command("Join Rx2 Datarate", "AT+JR2D",
+#if defined(TARGET_MTS_MDOT_F411RE)
+    "Join Rx2 datarate",
 #else
-    Command("AT+JR2D")
+    "",
 #endif
-{
+    "(US:DR8-DR13,AU:DR8-DR13,EU:DR0-DR7)") {
 
 }
 
@@ -34,6 +36,7 @@ uint32_t CmdJoinRx2Datarate::action(const std::vector<std::string>& args) {
         }
 
         if (CommandTerminal::Dot()->setJoinRx2DataRate(datarate) != mDot::MDOT_OK) {
+            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
             return 1;
         }
     }
@@ -49,8 +52,6 @@ bool CmdJoinRx2Datarate::verify(const std::vector<std::string>& args) {
         return true;
     }
 
-#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
-#endif
     return false;
 }
