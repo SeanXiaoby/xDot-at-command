@@ -20,8 +20,10 @@ public:
         eATK,
         eATF,
         eATW,
+#if MTS_CMD_TERM_VERBOSE
         eATV,
         eATS,
+#endif
         eATR,
         eIPR,
         eDIPR,
@@ -55,7 +57,6 @@ public:
         eNLC,
         eLCC,
         eLCT,
-        eENC,
         eRSSI,
         eSNR,
         eDP,
@@ -74,9 +75,10 @@ public:
         eMCRX,
         eRXD,
         eRXO,
-        eCRC,
         eADR,
         eACK,
+        eBTO,
+        eCTO,
         eREP,
         ePP,
         eMAC,
@@ -98,24 +100,29 @@ public:
         eLOG,
         eGPSTIME,
         eBLS,
-        eBAT,
         eLBTRSSI,
+        eBAT,
+        eATWP,
+#if defined(TARGET_MTS_MDOT_F411RE)
+        eREPAIR,
+        eWOTP,
+#endif
+        eDUTY,
+#if MTS_CMD_TERM_TEST_COMMANDS
         ePRINT_TEST,
         eRXDR,
         eSENDI,
         eSENDC,
         eMEM,
-#if defined(TARGET_MTS_MDOT_F411RE)
-        eREPAIR,
 #endif
-        eATWP,
-        eDREGS,
 #ifdef MTS_RADIO_DEBUG_COMMANDS
         ePRINT_DEBUG,
+        eDREGS,
         eERASE,
         eDD,
         eRXF,
         eRECVC,
+        eRTC,
 #endif
         NUMBER_OF_CMDS
     } CmdId_t;

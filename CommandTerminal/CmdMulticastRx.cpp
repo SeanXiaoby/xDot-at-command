@@ -1,15 +1,11 @@
 #include "CmdMulticastRx.h"
 
-CmdMulticastRx::CmdMulticastRx()
-:
-  Command("Muticast Rx Settings", "AT+MCRX",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Multicast Rx Settings",
+CmdMulticastRx::CmdMulticastRx() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("Muticast Rx Settings", "AT+MCRX", "Multicast Rx Settings", "(1-8),(DR0-DR15),(FREQ),(-1-7:PERIOD,-1:CLASS_C)")
 #else
-    "",
+    Command("AT+MCRX")
 #endif
-    "(1-8),(DR0-DR15),(FREQ),(-1-7:PERIOD,-1:CLASS_C)")
-
 {
     _queryable = true;
 }
@@ -49,7 +45,6 @@ uint32_t CmdMulticastRx::action(const std::vector<std::string>& args) {
         index -= 1;
 
         if (CommandTerminal::Dot()->setMulticastDatarate(index, datarate) != mDot::MDOT_OK) {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
 
@@ -57,12 +52,10 @@ uint32_t CmdMulticastRx::action(const std::vector<std::string>& args) {
         sscanf(args[3].c_str(), "%d", &frequency);
 
         if (CommandTerminal::Dot()->setMulticastFrequency(index, frequency) != mDot::MDOT_OK) {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
 
         if (CommandTerminal::Dot()->setMulticastPeriodicity(index, period) != mDot::MDOT_OK) {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
 
@@ -78,7 +71,9 @@ bool CmdMulticastRx::verify(const std::vector<std::string>& args) {
         int res = sscanf(args[1].c_str(), "%d", &value);
 
         if (res == 0 || value < 1 || value > 8) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid index, expects (1-8)");;
+#endif
             return false;
         }
 
@@ -91,32 +86,49 @@ bool CmdMulticastRx::verify(const std::vector<std::string>& args) {
         int res = sscanf(args[1].c_str(), "%d", &value);
 
         if (res == 0 || value < 1 || value > 8) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid index, expects (1-8)");;
+#endif
             return false;
         }
 
         res = sscanf(args[4].c_str(), "%d", &value);
 
         if (res == 0 || value < -1 || value > 7) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid period, expects (-1-7,-1:CLASS_C)");
+#endif
             return false;
         }
 
         int frequency = ULONG_MAX;
         if (sscanf(args[3].c_str(), "%d", &frequency) != 1) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
+#endif
             return false;
         }
 
         if (frequency != 0 && (frequency < int(CommandTerminal::Dot()->getMinFrequency()) || frequency > int(CommandTerminal::Dot()->getMaxFrequency()))) {
+#if MTS_CMD_TERM_VERBOSE
             char tmp[256];
             sprintf(tmp, "Invalid frequency, expects (0,%lu-%lu)", CommandTerminal::Dot()->getMinFrequency(), CommandTerminal::Dot()->getMaxFrequency());
             CommandTerminal::setErrorMessage(tmp);
+#endif
+            return false;
+        }
+
+        if (!CommandTerminal::Dot()->validateRx2DataRate(strToDataRate(args[2]))) {
+#if MTS_CMD_TERM_VERBOSE
+            CommandTerminal::setErrorMessage("RX data rate invalid");
+#endif
             return false;
         }
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

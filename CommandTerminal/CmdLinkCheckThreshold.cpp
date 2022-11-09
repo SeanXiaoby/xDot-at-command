@@ -1,13 +1,11 @@
 #include "CmdLinkCheckThreshold.h"
 
 CmdLinkCheckThreshold::CmdLinkCheckThreshold() :
-        Command("Link Check Threshold", "AT+LCT",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Set threshold for number of link check or ACK failures to tolerate, (0: off, N: number of failures)",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Link Check Threshold", "AT+LCT", "Set threshold for number of link check or ACK failures to tolerate, (0: off, N: number of failures)", "(0-255)")
 #else
-    "",
+    Command("AT+LCT")
 #endif
-    "(0-255)")
 {
     _queryable = true;
 }
@@ -25,7 +23,6 @@ uint32_t CmdLinkCheckThreshold::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setLinkCheckThreshold(count) != mDot::MDOT_OK)
         {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -44,13 +41,17 @@ bool CmdLinkCheckThreshold::verify(const std::vector<std::string>& args)
         sscanf(args[1].c_str(), "%d", &count);
 
         if (count < 0 || count > 255) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid count, expects (0-255))");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

@@ -33,17 +33,23 @@
  */
 
 #include "mbed.h"
-#include "ATSerial.h"
-#include "MTSSerial.h"
-#include "MTSSerialFlowControl.h"
 #include "Commands.h"
 #include "mDot.h"
 #include "mDotEvent.h"
 #include "Fota.h"
+#include "ATSerial.h"
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __command_terminal_H__
 #define __command_terminal_H__
+
+#ifndef MTS_CMD_TERM_TEST_COMMANDS
+#define MTS_CMD_TERM_TEST_COMMANDS 1
+#endif
+
+#ifndef MTS_CMD_TERM_VERBOSE
+#define MTS_CMD_TERM_VERBOSE 1
+#endif
 
 typedef uint32_t (*action_ptr_t)(std::vector<std::string> args);
 typedef bool (*verify_ptr_t)(std::vector<std::string> args);
@@ -83,7 +89,7 @@ class CommandTerminal {
             logDebug("RadioEvent - JoinFailed");
         }
 
-        virtual void PacketRx(uint8_t port, uint8_t *payload, uint16_t size, int16_t rssi, int16_t snr, lora::DownlinkControl ctrl, uint8_t slot, uint8_t retries, uint32_t address, bool dupRx);
+        virtual void PacketRx(uint8_t port, uint8_t *payload, uint16_t size, int16_t rssi, int16_t snr, lora::DownlinkControl ctrl, uint8_t slot, uint8_t retries, uint32_t address, uint32_t fcnt, bool dupRx);
 
         virtual void RxDone(uint8_t *payload, uint16_t size, int16_t rssi, int16_t snr, lora::DownlinkControl ctrl, uint8_t slot);
 
@@ -128,6 +134,8 @@ class CommandTerminal {
         }
 
         bool _sendAck;
+
+        void handleTestModePacket();
     };
 
 public:
@@ -187,11 +195,9 @@ public:
     static std::string formatPacket(std::vector<uint8_t> payload, bool hex = false);
     static void formatPacketSDSend(std::vector<uint8_t> &payload);
 protected:
-
     static std::string _errorMessage;
 
 private:
-
     mts::ATSerial& _serial;
     static mts::ATSerial* _serialp;
 
@@ -204,8 +210,9 @@ private:
 
     void serialLoop();
     bool autoJoinCheck();
-
+#if MTS_CMD_TERM_VERBOSE
     void printHelp();
+#endif
 
     static bool readable();
     static bool writeable();

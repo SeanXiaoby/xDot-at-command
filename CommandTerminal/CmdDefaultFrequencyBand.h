@@ -2,6 +2,7 @@
 #define __CMDDEFAULTFREQUENCYBAND_H__
 
 #include "Command.h"
+#include "ChannelPlans.h"
 
 class CommandTerminal;
 

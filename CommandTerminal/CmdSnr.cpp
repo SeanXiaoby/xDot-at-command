@@ -1,13 +1,16 @@
 #include "CmdSnr.h"
+#include "Lora.h"
+
+static inline void printSnrVal(int16_t val, const char* end) {
+    CommandTerminal::Serial()->writef("%d.%d%s", val / 10, abs(val % 10), end);
+}
 
 CmdSnr::CmdSnr() :
-        Command("Signal To Noise Ratio", "AT+SNR",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Display signal to noise ratio of received packets: last, min, max, avg in dB",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Signal To Noise Ratio", "AT+SNR", "Display signal to noise ratio of received packets: last, min, max, avg in dB", "(-20.0-20.0),(-20.0-20.0),(-20.0-20.0),(-20.0-20.0)")
 #else
-    "",
+    Command("AT+SNR")
 #endif
-    "(-20.0-20.0),(-20.0-20.0),(-20.0-20.0),(-20.0-20.0)")
 {
     _queryable = true;
 }
@@ -15,7 +18,17 @@ CmdSnr::CmdSnr() :
 uint32_t CmdSnr::action(const std::vector<std::string>& args)
 {
     mDot::snr_stats stats = CommandTerminal::Dot()->getSnrStats();
-    CommandTerminal::Serial()->writef("%d.%d, %d.%d, %d.%d, %d.%d\r\n", stats.last / 10, abs(stats.last % 10), stats.min / 10, abs(stats.min % 10), stats.max / 10, abs(stats.max % 10), stats.avg / 10, abs(stats.avg % 10));
+    if (stats.last == lora::INVALID_SNR) {
+#if MTS_CMD_TERM_VERBOSE
+        CommandTerminal::Serial()->writef("No data\r\n");
+#endif
+        return 1;
+    }
+    printSnrVal(stats.last, ", ");
+    printSnrVal(stats.min, ", ");
+    printSnrVal(stats.max, ", ");
+    printSnrVal(stats.avg, "\r\n");
+
 
     return 0;
 }

@@ -1,13 +1,11 @@
 #include "CmdWakeDelay.h"
 
 CmdWakeDelay::CmdWakeDelay() :
-        Command("Wake Delay", "AT+WD",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Time to wait for data after wakeup signal  (milliseconds)",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Wake Delay", "AT+WD", "Time to wait for data after wakeup signal  (milliseconds)", "(2-2147483646) ms")
 #else
-    "",
+    Command("AT+WD")
 #endif
-    "(2-2147483646) ms")
 {
     _queryable = true;
 }
@@ -24,7 +22,6 @@ uint32_t CmdWakeDelay::action(const std::vector<std::string>& args)
         sscanf(args[1].c_str(), "%d", &delay);
 
         if (CommandTerminal::Dot()->setWakeDelay(delay) != mDot::MDOT_OK) {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -41,18 +38,24 @@ bool CmdWakeDelay::verify(const std::vector<std::string>& args)
     {
         int delay;
         if (sscanf(args[1].c_str(), "%d", &delay) != 1) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
+#endif
             return false;
         }
 
         if (delay < 2 || delay > INT_MAX-1) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid delay, expects (2-2147483646) ms");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

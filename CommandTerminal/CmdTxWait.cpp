@@ -1,13 +1,11 @@
 #include "CmdTxWait.h"
 
 CmdTxWait::CmdTxWait() :
-        Command("Tx Wait", "AT+TXW",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Enable/disable waiting for rx windows to expire after send. (0: off, 1: on)",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Tx Wait", "AT+TXW", "Enable/disable waiting for rx windows to expire after send. (0: off, 1: on)", "(0,1)")
 #else
-    "",
+    Command("AT+TXW")
 #endif
-    "(0,1)")
 {
     _queryable = true;
 }
@@ -22,7 +20,6 @@ uint32_t CmdTxWait::action(const std::vector<std::string>& args)
     {
         if (CommandTerminal::Dot()->setTxWait(args[1] == "1") != mDot::MDOT_OK)
         {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -38,13 +35,17 @@ bool CmdTxWait::verify(const std::vector<std::string>& args)
     if (args.size() == 2)
     {
         if (args[1] != "0" && args[1] != "1") {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid parameter, expects (0: off, 1: on)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

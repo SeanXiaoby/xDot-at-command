@@ -1,14 +1,12 @@
 #include "CmdJoinNonceValidation.h"
 
-CmdJoinNonceValidation::CmdJoinNonceValidation()
-:
-  Command("Join Nonce Validation", "AT+JNV",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Enable/disable join nonce validation",
+CmdJoinNonceValidation::CmdJoinNonceValidation() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("Join Nonce Validation", "AT+JNV", "Enable/disable join nonce validation", "(0,1)")
 #else
-    "",
+    Command("AT+JNV")
 #endif
-    "(0,1)") {
+{
     _queryable = true;
 }
 
@@ -21,7 +19,6 @@ uint32_t CmdJoinNonceValidation::action(const std::vector<std::string>& args) {
         sscanf(args[1].c_str(), "%d", &retries);
 
         if (CommandTerminal::Dot()->setJoinNonceValidation(retries) != mDot::MDOT_OK) {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -37,14 +34,18 @@ bool CmdJoinNonceValidation::verify(const std::vector<std::string>& args) {
         int retries;
         if (sscanf(args[1].c_str(), "%d", &retries) == 1) {
             if (retries < 0 || retries > 1) {
+#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid parameter, expects (0: off, 1: on)");
+#endif
                 return false;
             }
             return true;
         }
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }
 

@@ -1,12 +1,11 @@
 #include "CmdDumpRegisters.h"
 
-CmdDumpRegisters::CmdDumpRegisters() : Command("Dump Regs", "AT+DREGS",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Dump the SX1272 register values",
+CmdDumpRegisters::CmdDumpRegisters() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("Dump Regs", "AT+DREGS", "Dump the SX1272 register values", "NONE")
 #else
-    "",
+    Command("AT+DREGS")
 #endif
-    "NONE")
 {
 }
 

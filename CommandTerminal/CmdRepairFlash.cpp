@@ -1,13 +1,11 @@
 #include "CmdRepairFlash.h"
 
 CmdRepairFlash::CmdRepairFlash() :
-        Command("Repair Flash Filesystem", "AT+REPAIR",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Repair file system",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Repair Flash Filesystem", "AT+REPAIR", "Repair file system", "1")
 #else
-    "",
+    Command("AT+REPAIR")
 #endif
-    "1")
 {
     _queryable = false;
 }
@@ -18,6 +16,7 @@ uint32_t CmdRepairFlash::action(const std::vector<std::string>& args)
     logWarning("Repairing flash, do not reset device, please wait...");
     CommandTerminal::Serial()->writef("Repairing flash, do not reset device, please wait...\r\n");
     CommandTerminal::Dot()->repairFlashFileSystem();
+    CommandTerminal::Serial()->writef("Repairs completed\r\n");
 #endif
     return 0;
 }
@@ -27,6 +26,8 @@ bool CmdRepairFlash::verify(const std::vector<std::string>& args)
     if (args.size() == 2 && args[1] == "1")
         return true;
 
-    CommandTerminal::setErrorMessage("Entire flash will be erased and config files rewritten, please provide parameter of '1' to confirm");
+#if MTS_CMD_TERM_VERBOSE
+    CommandTerminal::setErrorMessage("All files will be erased, please provide parameter of '1' to confirm");
+#endif
     return false;
 }

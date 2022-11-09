@@ -1,13 +1,11 @@
 #include "CmdFrequencyBand.h"
 
 CmdFrequencyBand::CmdFrequencyBand() :
-        Command("Current Frequency Band", "AT+FREQ",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Current Frequency Band of Device 'US915', 'AU915', 'EU868', 'AS923', 'KR920', 'AS923-JAPAN', 'IN865', or 'RU864'",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Current Frequency Band", "AT+FREQ", "Current Frequency Band of Device 'US915', 'AU915', 'EU868', 'AS923', 'AS923-2', 'AS923-3', 'AS923-4', 'KR920', 'AS923-JAPAN', 'IN865', or 'RU864'", "")
 #else
-    "",
+    Command("AT+FREQ")
 #endif
-    "")
 {
     _queryable = true;
 }
@@ -21,13 +19,4 @@ uint32_t CmdFrequencyBand::action(const std::vector<std::string>& args)
     }
 
     return 0;
-}
-
-bool CmdFrequencyBand::verify(const std::vector<std::string>& args)
-                              {
-    if (args.size() == 1)
-        return true;
-
-    CommandTerminal::setErrorMessage("Invalid arguments");
-    return false;
 }

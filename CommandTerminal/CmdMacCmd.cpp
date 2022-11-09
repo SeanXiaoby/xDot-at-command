@@ -1,15 +1,12 @@
 #include "CmdMacCmd.h"
 #include "CommandTerminal.h"
 
-CmdMacCmd::CmdMacCmd()
-:
-  Command("MAC Command", "AT+MAC",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Inject MAC command to MAC layer or read uplink MAC command buffer, pass '0' argument to clear buffer",
+CmdMacCmd::CmdMacCmd() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("MAC Command", "AT+MAC", "Inject MAC command to MAC layer or read uplink MAC command buffer, pass '0' argument to clear buffer", "(hex:242)")
 #else
-    "",
+    Command("AT+MAC")
 #endif
-    "(hex:242)")
 {
 }
 
@@ -41,12 +38,12 @@ uint32_t CmdMacCmd::action(const std::vector<std::string>& args) {
             }
 
             if ((code = CommandTerminal::Dot()->injectMacCommand(data)) != mDot::MDOT_OK) {
-                std::string error = mDot::getReturnCodeString(code);
+                // std::string error = mDot::getReturnCodeString(code);
 
-                if (code != mDot::MDOT_NOT_JOINED)
-                    error += +" - " + CommandTerminal::Dot()->getLastError();
+                // if (code != mDot::MDOT_NOT_JOINED)
+                //     error += +" - " + CommandTerminal::Dot()->getLastError();
 
-                CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
+                // CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
                 return 1;
             }
         }
@@ -63,14 +60,18 @@ bool CmdMacCmd::verify(const std::vector<std::string>& args) {
         if (args[1].size() == 1 && args[1] == "0") {
             return true;
         } else if (args[1].size() > 484 || !isHexString(args[1], args[1].size() / 2)) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid hex string, (hex:242)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }
 

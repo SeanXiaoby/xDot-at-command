@@ -1,13 +1,11 @@
 #include "CmdRxOutput.h"
 
 CmdRxOutput::CmdRxOutput() :
-        Command("Rx Output", "AT+RXO",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Set the Rx output type (0:hexadecimal, 1:raw, 2:extended, 3:extended_hex)",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Rx Output", "AT+RXO", "Set the Rx output type (0:hexadecimal, 1:raw, 2:extended, 3:extended_hex)", "(0-3)")
 #else
-    "",
+    Command("AT+RXO")
 #endif
-    "(0-3)")
 {
     _queryable = true;
 }
@@ -29,7 +27,6 @@ uint32_t CmdRxOutput::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setRxOutput(output) != mDot::MDOT_OK)
         {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -45,13 +42,17 @@ bool CmdRxOutput::verify(const std::vector<std::string>& args)
     if (args.size() == 2)
     {
         if (!(args[1] == "0" || args[1] == "1" || args[1] == "2" || args[1] == "3")) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid type, expects (0:hexadecimal, 1:raw, 2:extended, 3:extended_hex)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

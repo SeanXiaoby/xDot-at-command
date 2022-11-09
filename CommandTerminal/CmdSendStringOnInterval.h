@@ -17,4 +17,5 @@ private:
 
 };
 
+
 #endif // __CMDSENDSTRINGONINTERVAL_H__

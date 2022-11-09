@@ -1,17 +1,16 @@
 #include "CmdSendBinary.h"
 #include "CommandTerminal.h"
 
-CmdSendBinary::CmdSendBinary() : Command("Send Binary", "AT+SENDB",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Sends supplied binary (hex) packet data one time and return response",
+CmdSendBinary::CmdSendBinary() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("Send Binary", "AT+SENDB", "Sends supplied binary (hex) packet data one time and return response", "(hex:242)")
 #else
-    "",
+    Command("AT+SENDB")
 #endif
-    "(hex:242)"){}
+{}
 
 uint32_t CmdSendBinary::action(const std::vector<std::string>& args) {
     std::vector<uint8_t> data;
-    std::vector<uint8_t> mt;
 
     int temp;
     uint32_t length = args[1].size();
@@ -26,18 +25,12 @@ uint32_t CmdSendBinary::action(const std::vector<std::string>& args) {
     }
 
     if (CommandTerminal::Dot()->send(data, CommandTerminal::Dot()->getTxWait()) != mDot::MDOT_OK) {
-        CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
         //CommandTerminal::Serial()->attach();
         return 1;
     }
 
-    // clear and release memory
-    data.swap(mt);
-
-    if (CommandTerminal::Dot()->getTxWait() && CommandTerminal::Dot()->recv(data) == mDot::MDOT_OK) {
-        if (!data.empty()) {
-            CommandTerminal::Serial()->writef("%s\r\n", CommandTerminal::formatPacketData(data, CommandTerminal::Dot()->getRxOutput()).c_str());
-        }
+    if (CommandTerminal::Dot()->getTxWait()) {
+        printRecvData();
     }
 
     //CommandTerminal::Serial()->attach();
@@ -47,14 +40,18 @@ uint32_t CmdSendBinary::action(const std::vector<std::string>& args) {
 bool CmdSendBinary::verify(const std::vector<std::string>& args) {
     if (args.size() == 2) {
         if (args[1].size() > 484 || !isHexString(args[1], args[1].size() / 2)) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid hex string, (hex:242)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }
 

@@ -1,13 +1,9 @@
 #include "CmdDisplayStats.h"
 
+#if MTS_CMD_TERM_VERBOSE
 CmdDisplayStats::CmdDisplayStats() :
-  Command("Display Stats", "AT&S",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Display statistics",
-#else
-    "",
-#endif
-  "TABLE") {
+    Command("Display Stats", "AT&S", "Display statistics", "TABLE")
+{
 
 }
 
@@ -25,3 +21,4 @@ uint32_t CmdDisplayStats::action(const std::vector<std::string>& args) {
     return 0;
 }
 
+#endif // MTS_CMD_TERM_VERBOSE

@@ -1,13 +1,11 @@
 #include "CmdLogLevel.h"
 
 CmdLogLevel::CmdLogLevel() :
-        Command("Debug Log Level", "AT+LOG",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Enable/disable debug logging. (0: off, 1:Fatal - 6:Trace)",
+#if MTS_CMD_TERM_VERBOSE
+        Command("Debug Log Level", "AT+LOG", "Enable/disable debug logging. (0: off, 1:Fatal - 6:Trace)", "(0-6)")
 #else
-    "",
+        Command("AT+LOG")
 #endif
-    "(0-6)")
 {
     _queryable = true;
 }
@@ -25,7 +23,6 @@ uint32_t CmdLogLevel::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setLogLevel(level) != mDot::MDOT_OK)
         {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
     }
@@ -42,18 +39,24 @@ bool CmdLogLevel::verify(const std::vector<std::string>& args)
     {
         int level;
         if (sscanf(args[1].c_str(), "%d", &level) != 1) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
+#endif
             return false;
         }
 
         if (level < 0 || level > 6) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid level, expects (0-6)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

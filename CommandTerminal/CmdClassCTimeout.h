@@ -1,15 +1,15 @@
-#ifndef __CMDFREEMEMORY_H__
-#define __CMDFREEMEMORY_H__
+#ifndef __CMDCLASSCTIMEOUT_H__
+#define __CMDCLASSCTIMEOUT_H__
 
 #include "Command.h"
 
 class CommandTerminal;
 
-class CmdFreeMemory : public Command {
+class CmdClassCTimeout : public Command {
 
 public:
 
-    CmdFreeMemory();
+    CmdClassCTimeout();
     virtual uint32_t action(const std::vector<std::string>& args);
     virtual bool verify(const std::vector<std::string>& args);
 
@@ -17,4 +17,4 @@ private:
 
 };
 
-#endif // __CMDFREEMEMORY_H__
+#endif // __CMDCLASSCTIMEOUT_H__

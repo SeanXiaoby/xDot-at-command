@@ -1,13 +1,11 @@
 #include "CmdLbt.h"
 
 CmdLbt::CmdLbt() :
-    Command("Listen Before Talk", "AT+LBT",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Enable/Disable listen before talk (0,0: disable, time,threshold: enable)",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Listen Before Talk", "AT+LBT", "Enable/Disable listen before talk (0,0: disable, time,threshold: enable)", "time(0-65535 us),threshold(-128-127 dBm) (0,0: disable, time,threshold: enable)")
 #else
-    "",
+    Command("AT+LBT")
 #endif
-    "time(0-65535 us),threshold(-128-127 dBm) (0,0: disable, time,threshold: enable)")
 {
     _queryable = true;
 }
@@ -43,18 +41,24 @@ bool CmdLbt::verify(const std::vector<std::string>& args)
         int32_t rssi;
 
         if (args[1].find("-") != std::string::npos || sscanf(args[1].c_str(), "%lu", &us) != 1 || us > 65535) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid LBT time, expects 0-65535 us");
+#endif
             return false;
         }
 
         if (sscanf(args[2].c_str(), "%ld", &rssi) != 1 || rssi < -128 || rssi > 127) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid LBT threshold, expects -128-127 dBm");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

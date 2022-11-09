@@ -1,13 +1,11 @@
 #include "CmdRssi.h"
 
 CmdRssi::CmdRssi() :
-        Command("Signal Strength", "AT+RSSI",
-#if defined(TARGET_MTS_MDOT_F411RE)
-     "Displays signal strength information for received packets: last, min, max, avg in dB",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Signal Strength", "AT+RSSI", "Displays signal strength information for received packets: last, min, max, avg in dB", "(-140-0),(-140-0),(-140-0),(-140-0)")
 #else
-    "",
+    Command("AT+RSSI")
 #endif
-    "(-140-0),(-140-0),(-140-0),(-140-0)")
 {
     _queryable = true;
 }
@@ -15,6 +13,12 @@ CmdRssi::CmdRssi() :
 uint32_t CmdRssi::action(const std::vector<std::string>& args)
 {
     mDot::rssi_stats stats = CommandTerminal::Dot()->getRssiStats();
+    if (stats.last == lora::INVALID_RSSI) {
+#if MTS_CMD_TERM_VERBOSE
+        CommandTerminal::Serial()->writef("No data\r\n");
+#endif
+        return 1;
+    }
     CommandTerminal::Serial()->writef("%d, %d, %d, %d\r\n", stats.last, stats.min, stats.max, stats.avg);
     return 0;
 }

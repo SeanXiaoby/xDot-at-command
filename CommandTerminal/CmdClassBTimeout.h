@@ -1,20 +1,20 @@
-#ifndef __CMDCRC_H__
-#define __CMDCRC_H__
+#ifndef __CMDCLASSBTIMEOUT_H__
+#define __CMDCLASSBTIMEOUT_H__
 
 #include "Command.h"
 
 class CommandTerminal;
 
-class CmdCRC : public Command {
+class CmdClassBTimeout : public Command {
 
 public:
 
-    CmdCRC();
+    CmdClassBTimeout();
     virtual uint32_t action(const std::vector<std::string>& args);
     virtual bool verify(const std::vector<std::string>& args);
-    
-private:   
-    
+
+private:
+
 };
 
-#endif // __CMDCRC_H__
+#endif // __CMDCLASSBTIMEOUT_H__

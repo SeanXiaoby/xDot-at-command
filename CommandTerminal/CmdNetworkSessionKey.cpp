@@ -1,13 +1,11 @@
 #include "CmdNetworkSessionKey.h"
 
 CmdNetworkSessionKey::CmdNetworkSessionKey() :
-    Command("Network Session Key", "AT+NSK",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Network session encryption key (16 bytes)",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Network Session Key", "AT+NSK", "Network session encryption key (16 bytes)", "(hex:16) or (1-8),(hex:16)")
 #else
-    "",
+    Command("AT+NSK")
 #endif
-    "(hex:16) or (1-8),(hex:16)")
 {
     _queryable = true;
 }
@@ -38,13 +36,16 @@ uint32_t CmdNetworkSessionKey::action(const std::vector<std::string>& args)
             readByteArray(args[arg_index], NewKey, KEY_LENGTH);
 
             if (arg_index == 2 && CommandTerminal::Dot()->setMulticastNetworkSessionKey(index-1, &NewKey[0]) == mDot::MDOT_OK) {
+#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::Serial()->writef("Set Multicast Network Session Key %d: ", index);
                 CommandTerminal::Serial()->writef("%s\r\n", mts::Text::bin2hexString(NewKey, ".").c_str());
+#endif
             } else if (CommandTerminal::Dot()->setNetworkSessionKey(NewKey) == mDot::MDOT_OK) {
+#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::Serial()->writef("Set Network Session Key: ");
                 CommandTerminal::Serial()->writef("%s\r\n", mts::Text::bin2hexString(NewKey, ".").c_str());
+#endif
             } else {
-                CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
                 return 1;
             }
         }
@@ -60,7 +61,9 @@ bool CmdNetworkSessionKey::verify(const std::vector<std::string>& args)
 
     if (args.size() == 2) {
         if (!isHexString(args[1], 16)) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid key, expects (hex:16)");
+#endif
             return false;
         }
 
@@ -72,16 +75,22 @@ bool CmdNetworkSessionKey::verify(const std::vector<std::string>& args)
         sscanf(args[1].c_str(), "%d", &index);
 
         if (args[1].size() == 1 && (index < 1 || index > 8)) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid index, expects 1-8");
+#endif
             return false;
         } else if (args[2] != "?" && !isHexString(args[2], 16)) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid key, expects (hex:16)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

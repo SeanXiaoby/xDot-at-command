@@ -1,13 +1,11 @@
 #include "CmdNetworkJoinMode.h"
 
 CmdNetworkJoinMode::CmdNetworkJoinMode() :
-        Command("Network Join Mode", "AT+NJM",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "0: Manual configuration, 1: OTA Network Join, 2: Auto OTA Network Join on start up, 3: Peer-to-Peer (default: 1)",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Network Join Mode", "AT+NJM", "0: Manual configuration, 1: OTA Network Join, 2: Auto OTA Network Join on start up, 3: Peer-to-Peer (default: 1)", "(0-3)")
 #else
-    "",
+    Command("AT+NJM")
 #endif
-    "(0-3)")
 {
     _queryable = true;
 }
@@ -25,7 +23,6 @@ uint32_t CmdNetworkJoinMode::action(const std::vector<std::string>& args)
 
         if (CommandTerminal::Dot()->setJoinMode(mode) != mDot::MDOT_OK)
         {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());;
             return 1;
         }
 
@@ -49,13 +46,17 @@ bool CmdNetworkJoinMode::verify(const std::vector<std::string>& args)
     {
         if (!(args[1] == "0" || args[1] == "1" || args[1] == "2" || args[1] == "3"))
         {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid parameter, expects (0: Manual, 1: OTA, 2: Auto OTA, 3:Peer-to-Peer)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

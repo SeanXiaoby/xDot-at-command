@@ -1,15 +1,12 @@
 #include "CmdChannelMask.h"
 #include "ChannelPlan.h"
 
-CmdChannelMask::CmdChannelMask()
-:
-  Command("Channel Mask", "AT+CHM",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Get/set channel mask (OFFSET:0-4,MASK:0000-FFFF)",
+CmdChannelMask::CmdChannelMask() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("Channel Mask", "AT+CHM", "Get/set channel mask (OFFSET:0-4,MASK:0000-FFFF)", "(OFFSET:0-4,MASK:0000-FFFF)")
 #else
-        "",
+    Command("AT+CHM")
 #endif
-   "(OFFSET:0-4,MASK:0000-FFFF)")
 {
     _queryable = true;
 }
@@ -42,7 +39,6 @@ uint32_t CmdChannelMask::action(const std::vector<std::string>& args) {
         mask |= uint8_t(temp);
 
         if (CommandTerminal::Dot()->setChannelMask(offset, mask) != mDot::MDOT_OK) {
-            CommandTerminal::setErrorMessage(CommandTerminal::Dot()->getLastError());
             return 1;
         }
     }
@@ -58,30 +54,40 @@ bool CmdChannelMask::verify(const std::vector<std::string>& args) {
 
         int offset;
         if (sscanf(args[1].c_str(), "%d", &offset) != 1) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid argument");
+#endif
             return false;
         }
 
         if (lora::ChannelPlan::IsPlanDynamic(CommandTerminal::Dot()->getFrequencyBand())) {
             if (offset > 0) {
+#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid offset, expects (0)");
+#endif
                 return false;
             }
         } else {
             if (offset < 0 || offset > 4) {
+#if MTS_CMD_TERM_VERBOSE
                 CommandTerminal::setErrorMessage("Invalid offset, expects (0-4)");
+#endif
                 return false;
             }
         }
 
         if (!isHexString(args[2], 2)) {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid mask, expect (0000-FFFF)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }

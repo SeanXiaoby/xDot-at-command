@@ -1,30 +1,38 @@
 #include "CommandFactory.h"
 
+#if MTS_CMD_TERM_VERBOSE
+#define CMD_DUMMY(n,t,d,u)  CmdDummy(n,t,d,u)
+#else
+#define CMD_DUMMY(n,t,d,u)  CmdDummy(t)
+#endif
+
 Command* CommandFactory::Create(CmdId_t cmd)
 {
     switch (cmd) {
     case eAT:
-        return new CmdAttention();
+        return new CMD_DUMMY("Attention", "AT", "Attention", "");
     case eATI:
         return new CmdIdentification();
     case eLW:
-        return new CmdDummy("LoRaWAN MAC Version", "AT+LW", "Show support LoRaWAN MAC Version", "");
+        return new CMD_DUMMY("LoRaWAN MAC Version", "AT+LW", "Show support LoRaWAN MAC Version", "");
     case eATZ:
         return new CmdResetCpu();
     case eATE:
-        return new CmdDummy("Enable/Disable Echo", "ATE", "ATE0: disable, ATE1: enable", "(0,1)");
+        return new CMD_DUMMY("Enable/Disable Echo", "ATE", "ATE0: disable, ATE1: enable", "(0,1)");
     case eATVERBOSE:
-        return new CmdDummy("Enable/Disable Verbose", "ATV", "ATV0: disable, ATV1: enable", "(0,1)");
+        return new CMD_DUMMY("Enable/Disable Verbose", "ATV", "ATV0: disable, ATV1: enable", "(0,1)");
     case eATK:
-        return new CmdDummy("Hardware Flow Control", "AT&K", "AT&K0: disable, AT&K3: enable", "(0,3)");
+        return new CMD_DUMMY("Hardware Flow Control", "AT&K", "AT&K0: disable, AT&K3: enable", "(0,3)");
     case eATF:
         return new CmdFactoryDefault();
     case eATW:
-        return new CmdSaveConfig();
+        return new CMD_DUMMY("Save Configuration", "AT&W", "Save configuration to flash memory", "NONE");
+#if MTS_CMD_TERM_VERBOSE
     case eATV:
         return new CmdDisplayConfig();
     case eATS:
         return new CmdDisplayStats();
+#endif
     case eATR:
         return new CmdResetStats();
     case eIPR:
@@ -60,7 +68,7 @@ Command* CommandFactory::Create(CmdId_t cmd)
     case eDLC:
         return new CmdDownlinkCounter();
     case eSS:
-        return new CmdSaveSession();
+        return new CMD_DUMMY("Save Network Session", "AT+SS", "Save network session info to flash", "NONE");
     case eRS:
         return new CmdRestoreSession();
     case eNK:
@@ -91,14 +99,12 @@ Command* CommandFactory::Create(CmdId_t cmd)
         return new CmdLinkCheckCount();
     case eLCT:
         return new CmdLinkCheckThreshold();
-    case eENC:
-        return new CmdEncryption();
     case eRSSI:
         return new CmdRssi();
     case eSNR:
         return new CmdSnr();
     case eDP:
-        return new CmdDataPending();
+        return new CMD_DUMMY("Data Pending", "AT+DP", "Indicator of data in queue on server", "(0,1)");
     case eSDR:
         return new CmdSessionDataRate();
     case eCHM:
@@ -129,12 +135,14 @@ Command* CommandFactory::Create(CmdId_t cmd)
         return new CmdRxDelay();
     case eRXO:
         return new CmdRxOutput();
-    case eCRC:
-        return new CmdCRC();
     case eADR:
         return new CmdAdaptiveDataRate();
     case eACK:
         return new CmdACKAttempts();
+    case eBTO:
+        return new CmdClassBTimeout();
+    case eCTO:
+        return new CmdClassCTimeout();
     case eREP:
         return new CmdRepeat();
     case ePP:
@@ -148,11 +156,11 @@ Command* CommandFactory::Create(CmdId_t cmd)
     case eRECV:
         return new CmdReceiveOnce();
     case eURC:
-        return new CmdDummy("Unsolicited Response Code", "AT+URC", "Output packets to terminal when received", "(0,1)");
+        return new CMD_DUMMY("Unsolicited Response Code", "AT+URC", "Output packets to terminal when received", "(0,1)");
     case eSD:
-        return new CmdDummy("Serial Data Mode", "AT+SD", "Enter serial data mode, exit with '+++'", "NONE");
+        return new CMD_DUMMY("Serial Data Mode", "AT+SD", "Enter serial data mode, exit with '+++'", "NONE");
     case eSLEEP:
-        return new CmdDummy("Sleep Mode", "AT+SLEEP", "Enter sleep mode (0:deepsleep,1:sleep)", "(0,1)");
+        return new CMD_DUMMY("Sleep Mode", "AT+SLEEP", "Enter sleep mode (0:deepsleep,1:sleep)", "(0,1)");
     case eSDCE:
         return new CmdSerialClearOnError();
     case eWM:
@@ -179,8 +187,19 @@ Command* CommandFactory::Create(CmdId_t cmd)
         return new CmdLBTRSSI();
     case eBAT:
         return new CmdBatteryLevel();
+    case eATWP:
+        return new CMD_DUMMY("Write Protected Config", "AT&WP", "Write protected config to flash (DevEUI, AppEUI, AppKey, Frequency Band)", "NONE");
+#if defined(TARGET_MTS_MDOT_F411RE)
+    case eREPAIR:
+        return new CmdRepairFlash();
+    case eWOTP:
+        return new CmdWriteOtp();
+#endif
+    case eDUTY:
+        return new CmdDutyCycle();
+#if MTS_CMD_TERM_TEST_COMMANDS
     case ePRINT_TEST:
-        return new CmdDummy("***** Test Commands *****", "", "", "");
+        return new CMD_DUMMY("***** Test Commands *****", "", "", "");
     case eRXDR:
         return new CmdRxDataRate();
     case eSENDI:
@@ -188,18 +207,13 @@ Command* CommandFactory::Create(CmdId_t cmd)
     case eSENDC:
         return new CmdSendContinuous();
     case eMEM:
-        return new CmdFreeMemory();
-#if defined(TARGET_MTS_MDOT_F411RE)
-    case eREPAIR:
-        return new CmdRepairFlash();
+        return new CMD_DUMMY("Free Memory", "AT+MEM", "Show amount of free RAM available", "");
 #endif
-    case eATWP:
-        return new CmdWriteProtectedConfig();
-    case eDREGS:
-        return new CmdDumpRegisters();
 #ifdef MTS_RADIO_DEBUG_COMMANDS
     case ePRINT_DEBUG:
-        return new CmdDummy("***** Debug Commands *****", "", "", "");
+        return new CMD_DUMMY("***** Debug Commands *****", "", "", "");
+    case eDREGS:
+        return new CmdDumpRegisters();
     case eERASE:
         return new CmdEraseFlash();
     case eDD:
@@ -208,6 +222,8 @@ Command* CommandFactory::Create(CmdId_t cmd)
         return new CmdRxFrequency();
     case eRECVC:
         return new CmdReceiveContinuous();
+    case eRTC:
+        return new CmdRtc();
 #endif
     default:
         return NULL;

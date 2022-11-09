@@ -34,7 +34,6 @@
 
 #include "mbed.h"
 #include "mDot.h"
-#include "MTSSerial.h"
 #include "MTSText.h"
 #include <cstdlib>
 #include <string>
@@ -52,25 +51,34 @@
 #define EUI_LENGTH 8
 #define PASSPHRASE_LENGTH 128
 
-class Command
+class Command : private NonCopyable<Command>
 {
 public:
     Command();
+#if MTS_CMD_TERM_VERBOSE
     Command(const char* name, const char* text, const char* desc, const char* usage);
+#else
+    Command(const char* text);
+#endif
     virtual ~Command() {};
 
+#if MTS_CMD_TERM_VERBOSE
     const char* name() const { return _name; };
     const char* text() const { return _text; };
     const char* desc() const { return _desc; };
     const std::string help() const {
         return std::string(text()) + ": " + std::string(desc());
     };
+#else
+    const char* text() const { return _text; };
+#endif
 
     virtual uint32_t action(const std::vector<std::string>& args) = 0;
-    virtual bool verify(const std::vector<std::string>& args) = 0;
+    virtual bool verify(const std::vector<std::string>& args);
 
+#if MTS_CMD_TERM_VERBOSE
     std::string usage() const;
-    const std::string& errorMessage() const;
+#endif
     bool queryable() const;
 
     static const char newline[];
@@ -79,14 +87,22 @@ public:
     static bool isHexString(const std::string& str, size_t bytes);
     static bool isBaudRate(uint32_t baud);
 
+    static int strToDataRate(const std::string& str);
+
+    static bool printRecvData();
+
 protected:
     bool _queryable;
 
 private:
+#if MTS_CMD_TERM_VERBOSE
     const char* _name;
     const char* _text;
     const char* _desc;
     const char* _usage;
+#else
+    const char* _text;
+#endif
 };
 
 #endif /*__ command_H */

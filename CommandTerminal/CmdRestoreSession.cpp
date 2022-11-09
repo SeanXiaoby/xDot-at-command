@@ -1,13 +1,11 @@
 #include "CmdRestoreSession.h"
 
 CmdRestoreSession::CmdRestoreSession() :
-    Command("Restore Network Session", "AT+RS",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Restore network session info from flash",
+#if MTS_CMD_TERM_VERBOSE
+    Command("Restore Network Session", "AT+RS", "Restore network session info from flash", "NONE")
 #else
-    "",
+    Command("AT+RS")
 #endif
-    "NONE")
 {
 }
 

@@ -1,20 +1,21 @@
-#ifndef __CMDENCRYPTION_H__
-#define __CMDENCRYPTION_H__
+
+#ifndef __WRITE_OTP_H__
+#define __WRITE_OTP_H__
 
 #include "Command.h"
 
 class CommandTerminal;
 
-class CmdEncryption : public Command {
+class CmdWriteOtp : public Command {
 
 public:
 
-    CmdEncryption();
+    CmdWriteOtp();
     virtual uint32_t action(const std::vector<std::string>& args);
     virtual bool verify(const std::vector<std::string>& args);
-    
+
 private:   
     
 };
 
-#endif // __CMDENCRYPTION_H__
+#endif // __WRITE_OTP_H__

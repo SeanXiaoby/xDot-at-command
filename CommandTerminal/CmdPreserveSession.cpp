@@ -7,15 +7,12 @@
 
 #include "CmdPreserveSession.h"
 
-CmdPreserveSession::CmdPreserveSession()
-:
-  Command("Preserve Session", "AT+PS",
-#if defined(TARGET_MTS_MDOT_F411RE)
-    "Save network session info through reset or power down in AUTO_OTA mode (0:off, 1:on)",
+CmdPreserveSession::CmdPreserveSession() :
+#if MTS_CMD_TERM_VERBOSE
+    Command("Preserve Session", "AT+PS", "Save network session info through reset or power down in AUTO_OTA mode (0:off, 1:on)", "(0,1)")
 #else
-    "",
+    Command("AT+PS")
 #endif
-    "(0,1)")
 {
     _queryable = true;
 }
@@ -43,13 +40,17 @@ bool CmdPreserveSession::verify(const std::vector<std::string>& args) {
     if (args.size() == 2) {
 
         if (args[1] != "1" && args[1] != "0") {
+#if MTS_CMD_TERM_VERBOSE
             CommandTerminal::setErrorMessage("Invalid parameter, expects (0: off, 1: on)");
+#endif
             return false;
         }
 
         return true;
     }
 
+#if MTS_CMD_TERM_VERBOSE
     CommandTerminal::setErrorMessage("Invalid arguments");
+#endif
     return false;
 }
